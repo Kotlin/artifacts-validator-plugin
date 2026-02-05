@@ -1,0 +1,9 @@
+[versions]
+kotlin = "2.2.20"
+publishPlugin = "2.0.0"
+
+[libraries]
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+gradle-publish-plugin = { id = "com.gradle.plugin-publish", version.ref = "publishPlugin" }

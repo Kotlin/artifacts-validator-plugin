@@ -1,0 +1,1 @@
+rootProject.name = "artifacts-verifier-plugin"
