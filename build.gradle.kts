@@ -17,7 +17,8 @@ repositories {
 }
 
 dependencies {
-   compileOnly(gradleApi())
+    compileOnly(gradleApi())
+    testImplementation(kotlin("test"))
 }
 
 java {
@@ -38,6 +39,10 @@ kotlin {
         // See https://docs.gradle.org/current/userguide/compatibility.html#java_runtime
         jvmTarget.set(JvmTarget.JVM_20)
     }
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 gradlePlugin {
