@@ -127,68 +127,89 @@ public class ArtifactInfoExtractionTest {
     @Test
     fun testInvalidFiles() {
         // no extension
-        assertFailsWith<IllegalArgumentException>(
-            "Artifact file has no extension: " +
-                    "org/jetbrains/kotlinx/artifact-validator-plugin/0.0.1/artifact-validator-plugin-0.0.1"
-        ) {
+        assertFailsWith<IllegalArgumentException> {
             artifactInfo("org/jetbrains/kotlinx/artifact-validator-plugin/0.0.1/artifact-validator-plugin-0.0.1")
+        }.also {
+            assertEquals(
+                "Artifact file has no extension: " +
+                        "org/jetbrains/kotlinx/artifact-validator-plugin/0.0.1/artifact-validator-plugin-0.0.1",
+                it.message
+            )
         }
 
-        assertFailsWith<IllegalArgumentException>(
-            "Signature or digest files are not allowed for artifacts without an extension: " +
-                    "org/jetbrains/kotlinx/artifact-validator-plugin/0.0.1/artifact-validator-plugin-0.0.1.asc"
-        ) {
+        assertFailsWith<IllegalArgumentException> {
             artifactInfo("org/jetbrains/kotlinx/artifact-validator-plugin/0.0.1/artifact-validator-plugin-0.0.1.asc")
+        }.also {
+            assertEquals(
+                "Signature or checksum files are not allowed for artifacts without an extension: " +
+                        "org/jetbrains/kotlinx/artifact-validator-plugin/0.0.1/artifact-validator-plugin-0.0.1.asc",
+                it.message
+            )
         }
 
         // wrong version
-        assertFailsWith<IllegalArgumentException>(
-            "Artifact ID in a filename does not contain a version," +
-                    " or the version does not match a version extracted from a parent directory name (0.0.1): " +
-                    "org/jetbrains/kotlinx/artifact-validator-plugin/0.0.1/artifact-validator-plugin-1.1.1.pom"
-        ) {
+        assertFailsWith<IllegalArgumentException> {
             artifactInfo("org/jetbrains/kotlinx/artifact-validator-plugin/0.0.1/artifact-validator-plugin-1.1.1.pom")
+        }.also {
+            assertEquals(
+                "Artifact ID in a filename does not contain a version," +
+                        " or the version does not match a version extracted from a parent directory name (0.0.1): " +
+                        "org/jetbrains/kotlinx/artifact-validator-plugin/0.0.1/artifact-validator-plugin-1.1.1.pom",
+                it.message
+            )
         }
 
-        assertFailsWith<IllegalArgumentException>(
-            "Invalid snapshot version format in filename: it should be either 1.0-SNAPSHOT or" +
-                    "match the pattern 1.0-YYYYMMDD.HHMMSS-N: " +
-                    "org/jetbrains/kotlinx/artifact-validator-plugin/1.0-SNAPSHOT/artifact-validator-plugin-1.1.1.pom"
-        ) {
+        assertFailsWith<IllegalArgumentException> {
             artifactInfo("org/jetbrains/kotlinx/artifact-validator-plugin/1.0-SNAPSHOT/artifact-validator-plugin-1.1.1.pom")
+        }.also {
+            assertEquals(
+                "Invalid snapshot version format in filename: it should be either 1.0-SNAPSHOT or " +
+                        "match the pattern 1.0-YYYYMMDD.HHMMSS-N: " +
+                        "org/jetbrains/kotlinx/artifact-validator-plugin/1.0-SNAPSHOT/artifact-validator-plugin-1.1.1.pom",
+                it.message
+            )
         }
 
         // wrong filename
-        assertFailsWith<IllegalArgumentException>(
-            "Artifact filename prefix should match artifact ID (artifact-validator-plugin): " +
-                    "org/jetbrains/kotlinx/artifact-validator-plugin/0.0.1/artifact-verifier-plugin-0.0.1.pom"
-        ) {
+        assertFailsWith<IllegalArgumentException> {
             artifactInfo("org/jetbrains/kotlinx/artifact-validator-plugin/0.0.1/artifact-verifier-plugin-0.0.1.pom")
+        }.also {
+            assertEquals(
+                "Artifact filename prefix should match artifact ID (artifact-validator-plugin): " +
+                        "org/jetbrains/kotlinx/artifact-validator-plugin/0.0.1/artifact-verifier-plugin-0.0.1.pom",
+                it.message
+            )
         }
 
         // wrong directory tree
-        assertFailsWith<IllegalArgumentException>(
-            "The artifact file has invalid path format: " +
-                    "is has to contain at least 4 segments, but contained only 3: " +
-                    "artifact-validator-plugin/0.0.1/artifact-validator-plugin-0.0.1.pom"
-        ) {
+        assertFailsWith<IllegalArgumentException> {
             artifactInfo("artifact-validator-plugin/0.0.1/artifact-validator-plugin-0.0.1.pom")
+        }.also {
+            assertEquals(
+                "The artifact file has invalid path format: " +
+                        "is has to contain at least 4 segments, but contained only 3: " +
+                        "artifact-validator-plugin/0.0.1/artifact-validator-plugin-0.0.1.pom", it.message
+            )
         }
 
-        assertFailsWith<IllegalArgumentException>(
-            "The artifact file has invalid path format: " +
-                    "is has to contain at least 4 segments, but contained only 2: " +
-                    "0.0.1/artifact-validator-plugin-0.0.1.pom"
-        ) {
+        assertFailsWith<IllegalArgumentException> {
             artifactInfo("0.0.1/artifact-validator-plugin-0.0.1.pom")
+        }.also {
+            assertEquals(
+                "The artifact file has invalid path format: " +
+                        "is has to contain at least 4 segments, but contained only 2: " +
+                        "0.0.1/artifact-validator-plugin-0.0.1.pom", it.message
+            )
         }
 
-        assertFailsWith<IllegalArgumentException>(
-            "The artifact file has invalid path format: " +
-                    "is has to contain at least 4 segments, but contained only 1: " +
-                    "artifact-validator-plugin-0.0.1.pom"
-        ) {
+        assertFailsWith<IllegalArgumentException> {
             artifactInfo("artifact-validator-plugin-0.0.1.pom")
+        }.also {
+            assertEquals(
+                "The artifact file has invalid path format: " +
+                        "is has to contain at least 4 segments, but contained only 1: " +
+                        "artifact-validator-plugin-0.0.1.pom", it.message
+            )
         }
     }
 }

@@ -217,7 +217,7 @@ internal fun Path.extractArtifactInfo(): Result<ArtifactInfo> {
         val re = Regex("(${Regex.escape(versionPrefix)}[0-9]{8}\\.[0-9]{6}-[0-9]+).+")
         val match = re.matchEntire(nameSuffix) ?: return Result.failure(IllegalArgumentException(
             "Invalid snapshot version format in filename: it should be either ${gav.version} or " +
-                    "match the pattern $versionPrefix-YYYYMMDD.HHMMSS-N: $this"
+                    "match the pattern ${versionPrefix}YYYYMMDD.HHMMSS-N: $this"
         ))
         match.groupValues[1].also {
             nameSuffix = nameSuffix.drop(it.length)
