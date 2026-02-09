@@ -22,9 +22,8 @@ dependencies {
 }
 
 java {
-    // See https://docs.gradle.org/current/userguide/compatibility.html#java_runtime
-    sourceCompatibility = JavaVersion.VERSION_20
-    targetCompatibility = JavaVersion.VERSION_20
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 kotlin {
@@ -36,8 +35,7 @@ kotlin {
         // See https://docs.gradle.org/current/userguide/compatibility.html#kotlin
         languageVersion.set(KotlinVersion.KOTLIN_1_8)
         apiVersion.set(KotlinVersion.KOTLIN_1_8)
-        // See https://docs.gradle.org/current/userguide/compatibility.html#java_runtime
-        jvmTarget.set(JvmTarget.JVM_20)
+        jvmTarget.set(JvmTarget.JVM_1_8)
     }
 }
 
@@ -56,7 +54,7 @@ gradlePlugin {
     plugins {
         create("artifacts-validator-plugin") {
             id = "org.jetbrains.kotlinx.artifacts-validator-plugin"
-            implementationClass = "kotlinx.validation.ArtifactsvalidatorPlugin"
+            implementationClass = "kotlinx.validation.ArtifactsValidatorPlugin"
             displayName = "Maven artifacts validator plugin"
             description =
                 "Runs pre-publication checks on artifacts published to a local M2 repository"
