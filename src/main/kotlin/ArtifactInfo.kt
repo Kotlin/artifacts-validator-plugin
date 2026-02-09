@@ -1,6 +1,123 @@
 package kotlinx.validation
 
+import java.io.FileNotFoundException
+import java.nio.file.FileVisitResult
 import java.nio.file.Path
+import kotlin.collections.mutableListOf
+import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.fileVisitor
+import kotlin.io.path.relativeTo
+import kotlin.io.path.visitFileTree
+
+/**
+ * Information about an artifact and all additional files corresponding to it.
+ */
+internal data class AugmentedArtifactInfo(
+    val artifact: ArtifactInfo,
+    val signatureTypes: Set<SignatureType>,
+    val checksumTypes: Set<DigestType>
+) {
+    val isSigned: Boolean = signatureTypes.isNotEmpty()
+    val hasChecksums: Boolean = checksumTypes.isNotEmpty()
+}
+
+/**
+ * Information about all artifacts located by the given [groupId-artifactId-version triple](gav).
+ */
+internal data class AggregatedArtifactInfo(
+    val gav: ArtifactInfo.Gav,
+    val artifacts: List<AugmentedArtifactInfo>
+) {
+    val pom: AugmentedArtifactInfo? = artifacts.find { it.artifact.extension == "pom" }
+}
+
+/**
+ * Collects information about all artifacts from a Maven repository rooted at the given path.
+ * All errors occurred along the way will be reported to a given [onError] callback.
+ *
+ * Errors include all errors reported by the [extractArtifactInfo] and an error corresponding to
+ * signature and/or checksum files for non-existent artifact files.
+ */
+internal fun Path.scanRepository(onError: (Path, Exception) -> Unit): List<AggregatedArtifactInfo> {
+    val allArtifacts = mutableListOf<ArtifactInfo>()
+
+    val root = this
+
+    @OptIn(ExperimentalPathApi::class)
+    visitFileTree(
+        fileVisitor {
+            onPreVisitDirectory { directory, _ ->
+                when (directory.fileName.toString()) {
+                    ".index" -> FileVisitResult.SKIP_SUBTREE
+                    ".meta" -> FileVisitResult.SKIP_SUBTREE
+                    else -> FileVisitResult.CONTINUE
+                }
+            }
+            onVisitFile { file, _ ->
+                if (file.isMavenMetadataFile() || file.isArchetypeCatalog()) {
+                    return@onVisitFile FileVisitResult.CONTINUE
+                }
+
+                val artifactPath = file.relativeTo(root)
+
+                artifactPath.extractArtifactInfo()
+                    .onFailure { onError(file, it as Exception) }
+                    .onSuccess(allArtifacts::add)
+
+                FileVisitResult.CONTINUE
+            }
+        }
+    )
+
+    return allArtifacts.groupArtifacts(root, onError)
+}
+
+private fun Collection<ArtifactInfo>.groupArtifacts(
+    repositoryRoot: Path,
+    onError: (Path, Exception) -> Unit
+): List<AggregatedArtifactInfo> {
+    fun ArtifactInfo.isActualArtifact() = digestType == null && signatureType == null
+
+    // Group all ArtifactInfo corresponding to the same file of the same GAV together
+    val fileNameToFiles = groupBy { "${it.gav.toCoordinates()}:${it.fileName}" }
+
+    val artifacts: MutableMap<ArtifactInfo.Gav, MutableList<AugmentedArtifactInfo>> = mutableMapOf()
+    fileNameToFiles.values.forEach { files ->
+        val gav = files.first().gav
+
+        val mainArtifact = files.find { it.isActualArtifact() }
+        if (mainArtifact == null) {
+            val fullPath = repositoryRoot.resolve(gav.groupId.replace('.', '/'))
+                .resolve(gav.artifactId)
+                .resolve(gav.version)
+                .resolve(files.first().fileName)
+            onError(fullPath, IllegalArgumentException(
+                "There are checksum and/or signature files corresponding to an artifact, " +
+                        "but the main artifact file does not exist: $fullPath"
+            ))
+            return@forEach
+        }
+        val aai = AugmentedArtifactInfo(
+            mainArtifact,
+            signatureTypes = files.mapNotNullTo(mutableSetOf()) { it.signatureType },
+            checksumTypes = files.mapNotNullTo(mutableSetOf()) { it.digestType }
+        )
+        artifacts.getOrPut(gav) { mutableListOf() }.add(aai)
+    }
+
+    return artifacts.map { AggregatedArtifactInfo(it.key, it.value) }
+}
+
+private fun Path.isMavenMetadataFile(): Boolean {
+    val fileName = this.fileName.toString()
+    if (fileName == "maven-metadata.xml") return true
+    if (!fileName.startsWith("maven-metadata.xml.")) return false
+
+    val suffix = fileName.substring("maven-metadata.xml.".length)
+    return digestTypeValues.any { it.extension == suffix }
+}
+
+private fun Path.isArchetypeCatalog(): Boolean = fileName.toString() == "archetype-catalog.xml"
 
 internal enum class DigestType(val extension: String) {
     MD5("md5"),
@@ -42,7 +159,9 @@ internal data class ArtifactInfo(
         // Unlike "true" maven GAV, this version is a base version.
         // For snapshots, it would be `1.0-SNAPSHOT` and not `1.0-20260206.101225-1`.
         val version: String
-    )
+    ) {
+        fun toCoordinates(): String = "$groupId:$artifactId:$version"
+    }
 }
 
 /**
