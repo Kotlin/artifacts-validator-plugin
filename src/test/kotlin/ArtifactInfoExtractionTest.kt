@@ -112,6 +112,16 @@ public class ArtifactInfoExtractionTest {
             hasBaseFileName("org.jetbrains.kotlinx.artifacts-validator-plugin.gradle.plugin-1.0-20260205.193350-1.pom")
         }
 
+        assertThat(artifactInfo("org/jetbrains/kotlinx/artifacts-validator-plugin/org.jetbrains.kotlinx.artifacts-validator-plugin.gradle.plugin/1.0-SNAPSHOT/org.jetbrains.kotlinx.artifacts-validator-plugin.gradle.plugin-1.0-20260205.193350-1-sources.jar")) {
+            hasGroupId("org.jetbrains.kotlinx.artifacts-validator-plugin")
+            hasArtifactId("org.jetbrains.kotlinx.artifacts-validator-plugin.gradle.plugin")
+            hasBaseVersion("1.0-SNAPSHOT")
+            hasEffectiveVersion("1.0-20260205.193350-1")
+            hasExtension("jar")
+            hasClassifier("sources")
+            hasBaseFileName("org.jetbrains.kotlinx.artifacts-validator-plugin.gradle.plugin-1.0-20260205.193350-1-sources.jar")
+        }
+
         assertThat(artifactInfo("org/jetbrains/kotlinx/artifacts-validator-plugin/org.jetbrains.kotlinx.artifacts-validator-plugin.gradle.plugin/1.0-SNAPSHOT/org.jetbrains.kotlinx.artifacts-validator-plugin.gradle.plugin-1.0-SNAPSHOT.pom")) {
             hasCoordinates(
                 "org.jetbrains.kotlinx.artifacts-validator-plugin",
@@ -121,6 +131,17 @@ public class ArtifactInfoExtractionTest {
             hasExtension("pom")
             hasNoClassifier()
             hasBaseFileName("org.jetbrains.kotlinx.artifacts-validator-plugin.gradle.plugin-1.0-SNAPSHOT.pom")
+        }
+
+        assertThat(artifactInfo("org/jetbrains/kotlinx/artifacts-validator-plugin/org.jetbrains.kotlinx.artifacts-validator-plugin.gradle.plugin/1.0-SNAPSHOT/org.jetbrains.kotlinx.artifacts-validator-plugin.gradle.plugin-1.0-SNAPSHOT-javadoc.jar")) {
+            hasCoordinates(
+                "org.jetbrains.kotlinx.artifacts-validator-plugin",
+                "org.jetbrains.kotlinx.artifacts-validator-plugin.gradle.plugin",
+                "1.0-SNAPSHOT"
+            )
+            hasExtension("jar")
+            hasClassifier("javadoc")
+            hasBaseFileName("org.jetbrains.kotlinx.artifacts-validator-plugin.gradle.plugin-1.0-SNAPSHOT-javadoc.jar")
         }
     }
 

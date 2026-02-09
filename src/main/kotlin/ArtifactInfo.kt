@@ -205,9 +205,6 @@ internal fun Path.extractArtifactInfo(): Result<ArtifactInfo> {
                     "extracted from a parent directory name (${gav.version}): $this"
         ))
         nameSuffix = nameSuffix.drop(gav.version.length)
-        if (nameSuffix.startsWith("-")) {
-            nameSuffix = nameSuffix.drop(1)
-        }
         gav.version
     } else {
         // ... or the version in the filename has to follow pattern "XXX-YYYYMMDD.HHmmSS-<counter>",
@@ -222,6 +219,9 @@ internal fun Path.extractArtifactInfo(): Result<ArtifactInfo> {
         match.groupValues[1].also {
             nameSuffix = nameSuffix.drop(it.length)
         }
+    }
+    if (nameSuffix.startsWith("-")) {
+        nameSuffix = nameSuffix.drop(1)
     }
 
     // Extract and validate a classifier (a substring between the version and the extension) and an extension.
