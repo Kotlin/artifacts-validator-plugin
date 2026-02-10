@@ -76,11 +76,10 @@ internal fun Path.scanRepository(
         }
     )
 
-    return allArtifacts.groupArtifacts(root, snapshotResolutionStrategy, onError)
+    return allArtifacts.groupArtifacts( snapshotResolutionStrategy, onError)
 }
 
 private fun Collection<ArtifactInfo>.groupArtifacts(
-    repositoryRoot: Path,
     snapshotResolutionStrategy: SnapshotResolutionStrategy,
     onError: (Path, Exception) -> Unit
 ): List<AggregatedArtifactInfo> {
