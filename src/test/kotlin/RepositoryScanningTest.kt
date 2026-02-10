@@ -174,12 +174,45 @@ class RepositoryScanningTest {
             val errors = errors[path]!!
             assertEquals(1, errors.size)
             val errorMessage = errors.first()
-            assertContains(errorMessage,
+            assertContains(
+                errorMessage,
                 "There are checksum and/or signature files corresponding to an artifact, " +
-                        "but the main artifact file does not exist:")
+                        "but the main artifact file does not exist:"
+            )
         }
 
         checkErrorForFile("org/jetbrains/kotlinx/kotlinx-io-bytestring/0.8.4/kotlinx-io-bytestring-0.8.4.jar")
         checkErrorForFile("org/jetbrains/kotlinx/kotlinx-io-bytestring/0.8.4/kotlinx-io-bytestring-0.8.4.pom")
+    }
+
+    @Test
+    fun multipleSnapshots() {
+        buildRepository(
+            "org/jetbrains/kotlinx/kotlinx-io-bytestring/0.8.4-SNAPSHOT/kotlinx-io-bytestring-0.8.4-20260206.112233-1.jar",
+            "org/jetbrains/kotlinx/kotlinx-io-bytestring/0.8.4-SNAPSHOT/kotlinx-io-bytestring-0.8.4-20260206.112233-1.jar.asc",
+            "org/jetbrains/kotlinx/kotlinx-io-bytestring/0.8.4-SNAPSHOT/kotlinx-io-bytestring-0.8.4-20260206.112233-2.jar",
+            "org/jetbrains/kotlinx/kotlinx-io-bytestring/0.8.4-SNAPSHOT/kotlinx-io-bytestring-0.8.4-20260206.112233-2.jar.md5",
+            )
+
+        val root = repositoryRoot.toPath()
+
+        var reportedErrors = false
+        assertTrue(root.scanRepository { _, _ ->
+            reportedErrors = true
+        }.isEmpty())
+        assertTrue(reportedErrors)
+
+        val results = root.scanRepository(SnapshotResolutionStrategy.LATEST_FILE) { file, exception ->
+            fail("Reported error for: $file: $exception")
+        }
+        assertEquals(1, results.size)
+        results.first().artifacts.single().let { artifact ->
+            assertEquals(
+                "kotlinx-io-bytestring-0.8.4-20260206.112233-2.jar",
+                artifact.artifact.fileName
+            )
+            assertFalse(artifact.isSigned)
+            assertTrue(artifact.hasChecksums)
+        }
     }
 }

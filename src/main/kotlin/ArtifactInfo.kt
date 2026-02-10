@@ -1,9 +1,7 @@
 package kotlinx.validation
 
-import java.io.FileNotFoundException
 import java.nio.file.FileVisitResult
 import java.nio.file.Path
-import kotlin.collections.mutableListOf
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.fileVisitor
 import kotlin.io.path.relativeTo
@@ -31,6 +29,12 @@ internal data class AggregatedArtifactInfo(
     val pom: AugmentedArtifactInfo? = artifacts.find { it.artifact.extension == "pom" }
 }
 
+internal enum class SnapshotResolutionStrategy {
+    FAIL,
+    LATEST_FILE,
+    // FROM_MAVEN_METADATA
+}
+
 /**
  * Collects information about all artifacts from a Maven repository rooted at the given path.
  * All errors occurred along the way will be reported to a given [onError] callback.
@@ -38,7 +42,10 @@ internal data class AggregatedArtifactInfo(
  * Errors include all errors reported by the [extractArtifactInfo] and an error corresponding to
  * signature and/or checksum files for non-existent artifact files.
  */
-internal fun Path.scanRepository(onError: (Path, Exception) -> Unit): List<AggregatedArtifactInfo> {
+internal fun Path.scanRepository(
+    snapshotResolutionStrategy: SnapshotResolutionStrategy = SnapshotResolutionStrategy.FAIL,
+    onError: (Path, Exception) -> Unit
+): List<AggregatedArtifactInfo> {
     val allArtifacts = mutableListOf<ArtifactInfo>()
 
     val root = this
@@ -69,43 +76,79 @@ internal fun Path.scanRepository(onError: (Path, Exception) -> Unit): List<Aggre
         }
     )
 
-    return allArtifacts.groupArtifacts(root, onError)
+    return allArtifacts.groupArtifacts(root, snapshotResolutionStrategy, onError)
 }
 
 private fun Collection<ArtifactInfo>.groupArtifacts(
     repositoryRoot: Path,
+    snapshotResolutionStrategy: SnapshotResolutionStrategy,
     onError: (Path, Exception) -> Unit
 ): List<AggregatedArtifactInfo> {
     fun ArtifactInfo.isActualArtifact() = digestType == null && signatureType == null
+    fun ArtifactInfo.Gav.toFilePath(fileName: String): Path = repositoryRoot
+        .resolve(groupId.replace('.', '/'))
+        .resolve(artifactId)
+        .resolve(version)
+        .resolve(fileName)
 
-    // Group all ArtifactInfo corresponding to the same file of the same GAV together
-    val fileNameToFiles = groupBy { "${it.gav.toCoordinates()}:${it.fileName}" }
+    // Group all ArtifactInfo corresponding to the same artifact together.
+    // Note that for snapshot versions there might be multiple files which are resolved later.
+    val coordinatesToFiles = groupBy { "${it.gav.toCoordinates()}:${it.classifier}:${it.extension}" }
 
     val artifacts: MutableMap<ArtifactInfo.Gav, MutableList<AugmentedArtifactInfo>> = mutableMapOf()
-    fileNameToFiles.values.forEach { files ->
+    coordinatesToFiles.values.forEach { files ->
         val gav = files.first().gav
+        val filename = files.first().fileName
+        val mainArtifacts = files.filter { it.isActualArtifact() /* NB: others are signatures and checksums */ }
 
-        val mainArtifact = files.find { it.isActualArtifact() }
-        if (mainArtifact == null) {
-            val fullPath = repositoryRoot.resolve(gav.groupId.replace('.', '/'))
-                .resolve(gav.artifactId)
-                .resolve(gav.version)
-                .resolve(files.first().fileName)
+        if (mainArtifacts.isEmpty()) {
+            val fullPath = gav.toFilePath(filename)
             onError(fullPath, IllegalArgumentException(
                 "There are checksum and/or signature files corresponding to an artifact, " +
                         "but the main artifact file does not exist: $fullPath"
             ))
             return@forEach
         }
+
+        // Try to resolve snapshot artifacts
+        val mainArtifact = if (mainArtifacts.first().isSnapshot) {
+            val resolvedSnapshot = snapshotResolutionStrategy.resolveSnapshot(mainArtifacts)
+            if (resolvedSnapshot == null) {
+                val fullPath = gav.toFilePath(filename)
+                onError(fullPath, IllegalArgumentException(
+                    "Unable to resolve artifact for a snapshot version using a snapshot resolution strategy " +
+                            "$snapshotResolutionStrategy: $fullPath"
+                ))
+                return@forEach
+            }
+            resolvedSnapshot
+        } else {
+            check(mainArtifacts.size == 1) {
+                "Multiple artifact files were found for path: ${gav.toFilePath(filename)}"
+            }
+            mainArtifacts.first()
+        }
+
+        val filesMatchingMainArtifactVersion = if (mainArtifact.isSnapshot) {
+            files.filter { it.actualVersion == mainArtifact.actualVersion }
+        } else {
+            files
+        }
+
         val aai = AugmentedArtifactInfo(
             mainArtifact,
-            signatureTypes = files.mapNotNullTo(mutableSetOf()) { it.signatureType },
-            checksumTypes = files.mapNotNullTo(mutableSetOf()) { it.digestType }
+            signatureTypes = filesMatchingMainArtifactVersion.mapNotNullTo(mutableSetOf()) { it.signatureType },
+            checksumTypes = filesMatchingMainArtifactVersion.mapNotNullTo(mutableSetOf()) { it.digestType }
         )
         artifacts.getOrPut(gav) { mutableListOf() }.add(aai)
     }
 
     return artifacts.map { AggregatedArtifactInfo(it.key, it.value) }
+}
+
+private fun SnapshotResolutionStrategy.resolveSnapshot(files: List<ArtifactInfo>): ArtifactInfo? = when (this) {
+    SnapshotResolutionStrategy.FAIL -> null
+    SnapshotResolutionStrategy.LATEST_FILE -> files.maxByOrNull { it.actualVersion }
 }
 
 private fun Path.isMavenMetadataFile(): Boolean {
