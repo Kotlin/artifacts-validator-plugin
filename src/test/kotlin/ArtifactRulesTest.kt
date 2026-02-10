@@ -1,5 +1,6 @@
 package kotlinx.validation
 
+import java.nio.file.Paths
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -73,7 +74,7 @@ class ArtifactRulesTest {
             return AugmentedArtifactInfo(
                 ArtifactInfo(
                     ArtifactInfo.Gav(group, artifact, "does.not.matter"),
-                    fileName = "---",
+                    filePath = Paths.get("does/not/matter"),
                     extension = extension,
                     classifier = classifier,
                     signatureType = null,

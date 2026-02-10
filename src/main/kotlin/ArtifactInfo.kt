@@ -85,11 +85,6 @@ private fun Collection<ArtifactInfo>.groupArtifacts(
     onError: (Path, Exception) -> Unit
 ): List<AggregatedArtifactInfo> {
     fun ArtifactInfo.isActualArtifact() = digestType == null && signatureType == null
-    fun ArtifactInfo.Gav.toFilePath(fileName: String): Path = repositoryRoot
-        .resolve(groupId.replace('.', '/'))
-        .resolve(artifactId)
-        .resolve(version)
-        .resolve(fileName)
 
     // Group all ArtifactInfo corresponding to the same artifact together.
     // Note that for snapshot versions there might be multiple files which are resolved later.
@@ -98,14 +93,13 @@ private fun Collection<ArtifactInfo>.groupArtifacts(
     val artifacts: MutableMap<ArtifactInfo.Gav, MutableList<AugmentedArtifactInfo>> = mutableMapOf()
     coordinatesToFiles.values.forEach { files ->
         val gav = files.first().gav
-        val filename = files.first().fileName
+        val path = files.first().filePath
         val mainArtifacts = files.filter { it.isActualArtifact() /* NB: others are signatures and checksums */ }
 
         if (mainArtifacts.isEmpty()) {
-            val fullPath = gav.toFilePath(filename)
-            onError(fullPath, IllegalArgumentException(
+            onError(path, IllegalArgumentException(
                 "There are checksum and/or signature files corresponding to an artifact, " +
-                        "but the main artifact file does not exist: $fullPath"
+                        "but the main artifact file does not exist: $path"
             ))
             return@forEach
         }
@@ -114,18 +108,15 @@ private fun Collection<ArtifactInfo>.groupArtifacts(
         val mainArtifact = if (mainArtifacts.first().isSnapshot) {
             val resolvedSnapshot = snapshotResolutionStrategy.resolveSnapshot(mainArtifacts)
             if (resolvedSnapshot == null) {
-                val fullPath = gav.toFilePath(filename)
-                onError(fullPath, IllegalArgumentException(
+                onError(path, IllegalArgumentException(
                     "Unable to resolve artifact for a snapshot version using a snapshot resolution strategy " +
-                            "$snapshotResolutionStrategy: $fullPath"
+                            "$snapshotResolutionStrategy: $path"
                 ))
                 return@forEach
             }
             resolvedSnapshot
         } else {
-            check(mainArtifacts.size == 1) {
-                "Multiple artifact files were found for path: ${gav.toFilePath(filename)}"
-            }
+            check(mainArtifacts.size == 1) { "Multiple artifact files were found for path: $path" }
             mainArtifacts.first()
         }
 
@@ -177,9 +168,11 @@ internal enum class SignatureType(val extension: String) {
  * Information about an artifact from a path inside a Maven repository.
  *
  * For checksum files and signature files, either [digestType] or [signatureType] is not null and
- * [fileName] and [extension] fields corresponds to a "target" file.
- * For example, an info extracted for path `"org/example/artifact/1.0/artifact-1.0.pom.asc"`
- * [fileName] will be `artifact-1.0.pom` and [extension] will be just `pom`.
+ * [filePath], [fileName] and [extension] fields corresponds to a "target" file.
+ * For example, an info extracted for path `"org/example/artifact/1.0/artifact-1.0.pom.asc"` will have:
+ * - [filePath] `org/example/artifact/1.0/artifact-1.0.pom`;
+ * - [fileName] `artifact-1.0.pom`;
+ * - [extension] `pom`.
  *
  * For snapshot artifacts, there might be two different yet connected versions: the version and the base version.
  * The former is extracted from a file name and the latter corresponds to a parent directory name.
@@ -187,7 +180,7 @@ internal enum class SignatureType(val extension: String) {
  */
 internal data class ArtifactInfo(
     val gav: Gav,
-    val fileName: String,
+    val filePath: Path,
     val extension: String,
     val classifier: String,
     val signatureType: SignatureType? = null,
@@ -205,6 +198,9 @@ internal data class ArtifactInfo(
     ) {
         fun toCoordinates(): String = "$groupId:$artifactId:$version"
     }
+
+    val fileName: String
+        get() = filePath.fileName.toString()
 }
 
 /**
@@ -302,7 +298,7 @@ internal fun Path.extractArtifactInfo(): Result<ArtifactInfo> {
 
     return Result.success(ArtifactInfo(
         gav,
-        fileNameWithoutSuffix,
+        this.resolveSibling(fileNameWithoutSuffix),
         extension,
         classifier,
         signatureType,
