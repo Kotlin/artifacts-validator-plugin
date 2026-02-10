@@ -59,6 +59,11 @@ internal data class ArtifactRule(
             return rules
         }
     }
+
+    fun toArtifactIdentifier(withVersion: String): String {
+        val classifierStr = if (classifier.isEmpty()) "" else "-${classifier}"
+        return "$groupId:$artifactId-$withVersion$classifierStr.$extension"
+    }
 }
 
 /**

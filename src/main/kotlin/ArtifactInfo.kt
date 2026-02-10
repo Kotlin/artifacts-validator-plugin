@@ -201,6 +201,11 @@ internal data class ArtifactInfo(
 
     val fileName: String
         get() = filePath.fileName.toString()
+
+    fun toArtifactIdentifier(): String {
+        val classifierStr = if (classifier.isEmpty()) "" else "-${classifier}"
+        return "${gav.groupId}:${gav.artifactId}-${gav.version}$classifierStr.$extension"
+    }
 }
 
 /**
