@@ -1,6 +1,7 @@
 [versions]
 kotlin = "2.2.20"
 publishPlugin = "2.0.0"
+kover = "0.9.7"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -9,3 +10,4 @@ kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5", versi
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 gradle-publish-plugin = { id = "com.gradle.plugin-publish", version.ref = "publishPlugin" }
+kotlinx-kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }

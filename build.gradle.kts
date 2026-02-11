@@ -1,3 +1,6 @@
+@file:Suppress("UnstableApiUsage")
+
+import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
 import org.gradle.api.attributes.TestSuiteType.FUNCTIONAL_TEST
 import org.gradle.kotlin.dsl.invoke
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
@@ -8,6 +11,7 @@ plugins {
     `java-gradle-plugin`
     id("publication-conventions")
     alias(libs.plugins.gradle.publish.plugin)
+    alias(libs.plugins.kotlinx.kover)
 }
 
 group = "org.jetbrains.kotlinx"
@@ -40,7 +44,6 @@ kotlin {
     }
 }
 
-@Suppress("UnstableApiUsage")
 testing {
     suites {
         withType<JvmTestSuite>().configureEach {
@@ -69,7 +72,6 @@ testing {
     }
 }
 
-@Suppress("UnstableApiUsage")
 gradlePlugin {
     website = "https://github.com/Kotlin/" // TBD
     vcsUrl = "https://github.com/Kotlin/" // TBD
@@ -91,3 +93,20 @@ gradlePlugin {
 
 @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
 kotlin.abiValidation.enabled = true
+
+kover {
+    reports {
+        filters {
+            excludes {
+                packages("kotlinx.validation.test")
+            }
+        }
+
+        verify {
+            rule {
+                minBound(95, CoverageUnit.BRANCH)
+                minBound(95, CoverageUnit.LINE)
+            }
+        }
+    }
+}

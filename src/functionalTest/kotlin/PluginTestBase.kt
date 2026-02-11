@@ -1,4 +1,4 @@
-package kotlinx.validation
+package kotlinx.validation.test
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
@@ -11,6 +11,8 @@ import kotlin.test.assertEquals
 abstract class PluginTestBase(val resourcesPath: String) {
     @field:TempDir
     lateinit var projectRoot: File
+
+    private var gradleVersion: String? = null
 
     class DslBuilder {
         var enabled: Boolean? = null
@@ -41,7 +43,7 @@ abstract class PluginTestBase(val resourcesPath: String) {
         requireNotNull(srcStream) {
             "$from was not found among project resources"
         }
-        srcStream.use { srcStream ->
+        srcStream.use {
             dstFile.outputStream().use { outStream ->
                 srcStream.copyTo(outStream)
             }
@@ -78,27 +80,31 @@ abstract class PluginTestBase(val resourcesPath: String) {
         projectRoot.resolve(path).mkdirs()
     }
 
-    fun run(vararg command: String, block: BuildResult.() -> Unit) {
-        block(
-            GradleRunner.create()
-                .withGradleVersion("8.6")
-                .withPluginClasspath()
-                .withProjectDir(projectRoot)
-                .withArguments(*command)
-                .forwardOutput()
-                .build()
-        )
+    private fun prepareRunner(vararg commands: String): GradleRunner =
+        GradleRunner.create()
+            .withPluginClasspath()
+            .withProjectDir(projectRoot)
+            .withArguments(*commands)
+            .forwardOutput()
+            .withDebug(true) // we need it to collect code coverage
+            .let {
+                if (gradleVersion != null) {
+                    it.withGradleVersion(gradleVersion)
+                } else {
+                    it
+                }
+            }
+
+    fun useGradleVersion(gradleVersion: String) {
+        this.gradleVersion = gradleVersion
     }
 
-    fun runAndFail(vararg command: String, block: BuildResult.() -> Unit) {
-        block(
-            GradleRunner.create()
-                .withPluginClasspath()
-                .withProjectDir(projectRoot)
-                .withArguments(*command)
-                .forwardOutput()
-                .buildAndFail()
-        )
+    fun run(vararg commands: String, block: BuildResult.() -> Unit) {
+        block(prepareRunner(*commands).build())
+    }
+
+    fun runAndFail(vararg commands: String, block: BuildResult.() -> Unit) {
+        block(prepareRunner(*commands).buildAndFail())
     }
 
     fun BuildResult.checkTaskStatus(task: String, status: TaskOutcome) {

@@ -1,4 +1,4 @@
-package kotlinx.validation
+package kotlinx.validation.test
 
 import org.gradle.testkit.runner.TaskOutcome
 import kotlin.test.Test
@@ -225,6 +225,10 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
         createFile("build/repo/org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1.pom")
         createFile("build/repo/org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1.jar")
         createFile("build/repo/org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1-sources.jar")
+
+        // @Option does not work well with DirectoryProperty for older Gradle versions:
+        // https://github.com/gradle/gradle/issues/12009
+        useGradleVersion("8.5")
 
         run("validateArtifacts", "--dump") {
             checkTaskStatus(":validateArtifacts", TaskOutcome.SUCCESS)
