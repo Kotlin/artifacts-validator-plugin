@@ -195,6 +195,23 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
     }
 
     @Test
+    fun invalidChecksumsParameterValues() {
+        copySettingsKts()
+        copyBuildKts {
+            artifactsList = "artifacts.txt"
+            artifactsRepository = "build/repo"
+            requireChecksums = setOf("CRC32")
+        }
+        createFile("artifacts.txt")
+        createDir("build/repo")
+
+        runAndFail("validateArtifacts") {
+            checkTaskStatus(":validateArtifacts", TaskOutcome.FAILED)
+            outputContains("Invalid checksum type: CRC32. Use one of MD5, SHA1, SHA256, SHA512")
+        }
+    }
+
+    @Test
     fun invalidRulesFiles() {
         copySettingsKts()
         copyBuildKts {
@@ -268,6 +285,33 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
             outputContains("[Artifacts Validation] All artifacts are signed.")
             outputContains("[Artifacts Validation] All artifacts have required checksums.")
 
+        }
+    }
+
+    @Test
+    fun brokenFilesInRepository() {
+        copySettingsKts()
+        copyBuildKts {
+            artifactsList = "artifacts.txt"
+            artifactsRepository = "build/repo"
+        }
+        createFile("artifacts.txt", """
+        org.jetbrains.kotlinx:basic-test-project/.pom,sources.jar
+        """.trimIndent())
+
+        createFile("build/repo/org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1.pom.asc")
+        createFile("build/repo/org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1-sources")
+
+        runAndFail("validateArtifacts") {
+            checkTaskStatus(":validateArtifacts", TaskOutcome.FAILED)
+            outputContains("[Artifacts Validation] Error detecting while reading file ")
+            outputContains(
+                "build/repo/org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1.pom: " +
+                    "There are checksum and/or signature files corresponding to an artifact, " +
+                    "but the main artifact file does not exist:"
+            )
+            outputContains("/build/repo/org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1-sources: Artifact file has no extension:")
+            outputContains("Errors were detected while loading artifacts info. See log for details")
         }
     }
 }
