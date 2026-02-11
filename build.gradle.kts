@@ -88,3 +88,6 @@ gradlePlugin {
         }
     }
 }
+
+@OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
+kotlin.abiValidation.enabled = true
