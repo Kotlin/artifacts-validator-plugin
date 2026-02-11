@@ -53,8 +53,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
         createFile("build/repo/org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1.pom")
         runAndFail("validateArtifacts") {
             checkTaskStatus(":validateArtifacts", TaskOutcome.FAILED)
-            outputContains("An input file was expected to be present but it doesn't exist.")
-            outputContains("artifacts.txt' which doesn't exist")
+            outputContains("Artifacts list file does not exist: artifacts.txt")
         }
     }
 
