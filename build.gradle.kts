@@ -1,3 +1,5 @@
+import org.gradle.api.attributes.TestSuiteType.FUNCTIONAL_TEST
+import org.gradle.kotlin.dsl.invoke
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -29,7 +31,7 @@ java {
 kotlin {
     explicitApi()
 
-    jvmToolchain(25)
+    jvmToolchain(21)
 
     compilerOptions {
         // See https://docs.gradle.org/current/userguide/compatibility.html#kotlin
@@ -39,13 +41,39 @@ kotlin {
     }
 }
 
-tasks.test {
-    useJUnitPlatform()
+@Suppress("UnstableApiUsage")
+testing {
+    suites {
+        withType<JvmTestSuite>().configureEach {
+            useJUnitJupiter()
+            dependencies {
+                implementation(project())
+                implementation(libs.kotlin.test)
+                implementation(libs.kotlin.test.junit5)
+            }
+        }
+
+        val functionalTest by creating(JvmTestSuite::class) {
+            testType.set(FUNCTIONAL_TEST)
+
+            dependencies {
+                implementation(gradleApi())
+                implementation(gradleTestKit())
+            }
+        }
+
+        gradlePlugin.testSourceSets(functionalTest.sources)
+
+        tasks.check {
+            dependsOn(functionalTest)
+        }
+    }
 }
 
+@Suppress("UnstableApiUsage")
 gradlePlugin {
-    website.set("https://github.com/Kotlin/") // TBD
-    vcsUrl.set("https://github.com/Kotlin/") // TBD
+    website = "https://github.com/Kotlin/" // TBD
+    vcsUrl = "https://github.com/Kotlin/" // TBD
 
     plugins.configureEach {
         tags.addAll("maven", "maven-publish", "artifacts", "check")
@@ -62,6 +90,7 @@ gradlePlugin {
     }
 }
 
+@Suppress("UnstableApiUsage")
 publishing {
     publications {
         repositories {
