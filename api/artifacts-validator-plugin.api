@@ -24,5 +24,6 @@ public abstract class kotlinx/validation/ArtifactsValidatorPluginExtension {
 	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getRequireChecksums ()Lorg/gradle/api/provider/SetProperty;
 	public abstract fun getRequireSignatures ()Lorg/gradle/api/provider/Property;
+	public abstract fun getTask ()Lorg/gradle/api/tasks/TaskProvider;
 }
 

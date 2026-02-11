@@ -6,12 +6,16 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
+import org.gradle.api.tasks.TaskContainer
+import org.gradle.api.tasks.TaskProvider
+import javax.inject.Inject
 
 public class ArtifactsValidatorPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val extension = project.extensions.create(
+            ArtifactsValidatorPluginExtension::class.java,
             "artifactsValidation",
-            ArtifactsValidatorPluginExtension::class.java
+            ArtifactsValidatorPluginExtensionImpl::class.java
         )
         extension.enabled.convention(true)
         extension.requireSignatures.convention(false)
@@ -45,4 +49,12 @@ public abstract class ArtifactsValidatorPluginExtension {
     public abstract val artifactsRepository: DirectoryProperty
     public abstract val requireSignatures: Property<Boolean>
     public abstract val requireChecksums: SetProperty<String>
+    public abstract val task: TaskProvider<ArtifactsValidationTask>
+}
+
+internal abstract class ArtifactsValidatorPluginExtensionImpl @Inject constructor(
+    val tasks: TaskContainer
+) : ArtifactsValidatorPluginExtension() {
+    override val task: TaskProvider<ArtifactsValidationTask>
+        get() = tasks.named("validateArtifacts", ArtifactsValidationTask::class.java)
 }
