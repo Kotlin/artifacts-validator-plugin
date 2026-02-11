@@ -98,13 +98,13 @@ public abstract class ArtifactsValidationTask : DefaultTask() {
         validateAttributes(artifacts, requireSignatures.getOrElse(false), checksums)
     }
 
-    private fun parseChecksumTypes(): Set<DigestType> = buildSet {
+    private fun parseChecksumTypes(): Set<ChecksumType> = buildSet {
         requireChecksums.getOrElse(emptySet()).forEach { rawValue ->
             try {
-                add(DigestType.valueOf(rawValue.uppercase()))
+                add(ChecksumType.valueOf(rawValue.uppercase()))
             } catch (_: IllegalArgumentException) {
                 throw GradleException(
-                    "Invalid checksum type: $rawValue. Use one of ${DigestType.values().joinToString(", ")}"
+                    "Invalid checksum type: $rawValue. Use one of ${ChecksumType.values().joinToString(", ")}"
                 )
             }
         }
@@ -203,10 +203,11 @@ public abstract class ArtifactsValidationTask : DefaultTask() {
         )
     }
 
+    @OptIn(ExperimentalStdlibApi::class)
     private fun validateAttributes(
         artifacts: List<AggregatedArtifactInfo>,
         requireSignature: Boolean,
-        requiredChecksums: Set<DigestType>
+        requiredChecksums: Set<ChecksumType>
     ) {
         var hasChecksumErrors = false
         var hasSignatureErrors = false

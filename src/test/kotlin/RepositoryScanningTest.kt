@@ -18,7 +18,7 @@ class RepositoryScanningTest {
         }
     }
 
-    private fun AugmentedArtifactInfo.assertSignedAndHasChecksums(vararg checksum: DigestType) {
+    private fun AugmentedArtifactInfo.assertSignedAndHasChecksums(vararg checksum: ChecksumType) {
         assertTrue(hasChecksums)
         assertEquals(checksum.toSet(), checksumTypes)
 
@@ -78,7 +78,7 @@ class RepositoryScanningTest {
             assertEquals(1, artifact.artifacts.size)
             val pomFile = artifact.artifacts.single()
             assertSame(pomFile, artifact.pom)
-            pomFile.assertSignedAndHasChecksums(DigestType.SHA1, DigestType.MD5)
+            pomFile.assertSignedAndHasChecksums(ChecksumType.SHA1, ChecksumType.MD5)
             pomFile.artifact.assertBasicArtifact("org.jetbrains.kotlinx", "kotlinx-io-core", "0.8.0", "pom")
         }
 
@@ -105,11 +105,11 @@ class RepositoryScanningTest {
 
             val pomFile = assertNotNull(artifact.artifacts.find { it.artifact.extension == "pom" })
             assertSame(pomFile, artifact.pom)
-            pomFile.assertSignedAndHasChecksums(DigestType.SHA1, DigestType.MD5)
+            pomFile.assertSignedAndHasChecksums(ChecksumType.SHA1, ChecksumType.MD5)
             pomFile.artifact.assertBasicArtifact("org.jetbrains.kotlinx", "kotlinx-io-core-jvm", "0.8.0", "pom")
 
             val jarFile = assertNotNull(artifact.artifacts.find { it.artifact.extension == "jar" })
-            jarFile.assertSignedAndHasChecksums(DigestType.SHA1, DigestType.MD5)
+            jarFile.assertSignedAndHasChecksums(ChecksumType.SHA1, ChecksumType.MD5)
             jarFile.artifact.assertBasicArtifact("org.jetbrains.kotlinx", "kotlinx-io-core-jvm", "0.8.0", "jar")
         }
     }

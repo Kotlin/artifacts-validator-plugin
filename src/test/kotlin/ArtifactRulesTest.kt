@@ -78,7 +78,7 @@ class ArtifactRulesTest {
                     extension = extension,
                     classifier = classifier,
                     signatureType = null,
-                    digestType = null,
+                    checksumType = null,
                     isSnapshot = false
                 ), emptySet(), emptySet()
             )

@@ -13,7 +13,7 @@ import kotlin.io.path.visitFileTree
 internal data class AugmentedArtifactInfo(
     val artifact: ArtifactInfo,
     val signatureTypes: Set<SignatureType>,
-    val checksumTypes: Set<DigestType>
+    val checksumTypes: Set<ChecksumType>
 ) {
     val isSigned: Boolean = signatureTypes.isNotEmpty()
     val hasChecksums: Boolean = checksumTypes.isNotEmpty()
@@ -83,7 +83,7 @@ private fun Collection<ArtifactInfo>.groupArtifacts(
     snapshotResolutionStrategy: SnapshotResolutionStrategy,
     onError: (Path, Exception) -> Unit
 ): List<AggregatedArtifactInfo> {
-    fun ArtifactInfo.isActualArtifact() = digestType == null && signatureType == null
+    fun ArtifactInfo.isActualArtifact() = checksumType == null && signatureType == null
 
     // Group all ArtifactInfo corresponding to the same artifact together.
     // Note that for snapshot versions there might be multiple files which are resolved later.
@@ -128,7 +128,7 @@ private fun Collection<ArtifactInfo>.groupArtifacts(
         val aai = AugmentedArtifactInfo(
             mainArtifact,
             signatureTypes = filesMatchingMainArtifactVersion.mapNotNullTo(mutableSetOf()) { it.signatureType },
-            checksumTypes = filesMatchingMainArtifactVersion.mapNotNullTo(mutableSetOf()) { it.digestType }
+            checksumTypes = filesMatchingMainArtifactVersion.mapNotNullTo(mutableSetOf()) { it.checksumType }
         )
         artifacts.getOrPut(gav) { mutableListOf() }.add(aai)
     }
@@ -147,12 +147,12 @@ private fun Path.isMavenMetadataFile(): Boolean {
     if (!fileName.startsWith("maven-metadata.xml.")) return false
 
     val suffix = fileName.substring("maven-metadata.xml.".length)
-    return digestTypeValues.any { it.extension == suffix }
+    return checksumTypeValues.any { it.extension == suffix }
 }
 
 private fun Path.isArchetypeCatalog(): Boolean = fileName.toString() == "archetype-catalog.xml"
 
-internal enum class DigestType(val extension: String) {
+internal enum class ChecksumType(val extension: String) {
     MD5("md5"),
     SHA1("sha1"),
     SHA256("sha256"),
@@ -166,7 +166,7 @@ internal enum class SignatureType(val extension: String) {
 /**
  * Information about an artifact from a path inside a Maven repository.
  *
- * For checksum files and signature files, either [digestType] or [signatureType] is not null and
+ * For checksum files and signature files, either [checksumType] or [signatureType] is not null and
  * [filePath], [fileName] and [extension] fields corresponds to a "target" file.
  * For example, an info extracted for path `"org/example/artifact/1.0/artifact-1.0.pom.asc"` will have:
  * - [filePath] `org/example/artifact/1.0/artifact-1.0.pom`;
@@ -183,7 +183,7 @@ internal data class ArtifactInfo(
     val extension: String,
     val classifier: String,
     val signatureType: SignatureType? = null,
-    val digestType: DigestType? = null,
+    val checksumType: ChecksumType? = null,
     val isSnapshot: Boolean,
     // This is the "version" in maven GAV terminology, while gav.version is a base version.
     val actualVersion: String = gav.version
@@ -286,7 +286,7 @@ internal fun Path.extractArtifactInfo(fullPath: Path = this): Result<ArtifactInf
 
     // Check if it is a checksum or a signature file
     val signatureType = signatureTypeValues.find { it.extension == trailingExtension }
-    val digestType = digestTypeValues.find { it.extension == trailingExtension }
+    val digestType = checksumTypeValues.find { it.extension == trailingExtension }
     val isSpecialFile = signatureType != null || digestType != null
 
     val fileNameWithoutSuffix = if (isSpecialFile) {
@@ -329,6 +329,6 @@ private fun Path.extractGav(): Result<ArtifactInfo.Gav> {
     ))
 }
 
-private val digestTypeValues = DigestType.values()
+private val checksumTypeValues = ChecksumType.values()
 private val signatureTypeValues = SignatureType.values()
-private val specialExtensions = signatureTypeValues.map { it.extension }.toSet() + digestTypeValues.map { it.extension }.toSet()
+private val specialExtensions = signatureTypeValues.map { it.extension }.toSet() + checksumTypeValues.map { it.extension }.toSet()

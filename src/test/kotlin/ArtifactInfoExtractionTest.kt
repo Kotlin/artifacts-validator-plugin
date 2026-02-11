@@ -27,10 +27,10 @@ internal class ArtifactInfoAsserter(val ai: ArtifactInfo) {
     fun hasNoClassifier() = hasClassifier("")
     fun hasExtension(extension: String) = assertEquals(extension, ai.extension)
     fun isSignatureFile() = assertEquals(SignatureType.PGP, ai.signatureType)
-    fun isDigestFile(digestType: DigestType) = assertEquals(digestType, ai.digestType)
+    fun isDigestFile(checksumType: ChecksumType) = assertEquals(checksumType, ai.checksumType)
     fun isRegularFile() {
         assertNull(ai.signatureType, "Expected a regular file, but it was a signature file")
-        assertNull(ai.digestType, "Expected a regular file, but it was a digest file (${ai.digestType})")
+        assertNull(ai.checksumType, "Expected a regular file, but it was a digest file (${ai.checksumType})")
     }
 
     fun hasBaseFileName(name: String) = assertEquals(name, ai.fileName)
@@ -62,7 +62,7 @@ public class ArtifactInfoExtractionTest {
         assertThat(artifactInfo("org/jetbrains/kotlinx/artifact-validator-plugin/0.0.1/artifact-validator-plugin-0.0.1.pom.sha512")) {
             hasCoordinates("org.jetbrains.kotlinx", "artifact-validator-plugin", "0.0.1")
             hasNoClassifier()
-            isDigestFile(DigestType.SHA512)
+            isDigestFile(ChecksumType.SHA512)
             hasExtension("pom")
             hasBaseFileName("artifact-validator-plugin-0.0.1.pom")
         }
@@ -86,7 +86,7 @@ public class ArtifactInfoExtractionTest {
         assertThat(artifactInfo("org/jetbrains/kotlinx/artifact-validator-plugin/0.0.1/artifact-validator-plugin-0.0.1-sources.jar.md5")) {
             hasCoordinates("org.jetbrains.kotlinx", "artifact-validator-plugin", "0.0.1")
             hasClassifier("sources")
-            isDigestFile(DigestType.MD5)
+            isDigestFile(ChecksumType.MD5)
             hasExtension("jar")
             hasBaseFileName("artifact-validator-plugin-0.0.1-sources.jar")
         }
