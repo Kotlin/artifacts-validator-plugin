@@ -67,7 +67,7 @@ internal fun Path.scanRepository(
 
                 val artifactPath = file.relativeTo(root)
 
-                artifactPath.extractArtifactInfo()
+                artifactPath.extractArtifactInfo(fullPath = file)
                     .onFailure { onError(file, it as Exception) }
                     .onSuccess(allArtifacts::add)
 
@@ -223,9 +223,9 @@ internal data class ArtifactInfo(
  * @return extracted [ArtifactInfo] or a validation exception.
  * @throws IllegalArgumentException when this [Path] is absolute.
  */
-internal fun Path.extractArtifactInfo(): Result<ArtifactInfo> {
+internal fun Path.extractArtifactInfo(fullPath: Path = this): Result<ArtifactInfo> {
     require(!isAbsolute) {
-        "Only relative path are allowed, but the function was invoked an absolute path $this"
+        "Only relative path are allowed, but the function was invoked an absolute path $fullPath"
     }
     val gav = extractGav().getOrElse { return Result.failure(it) }
 
@@ -233,7 +233,7 @@ internal fun Path.extractArtifactInfo(): Result<ArtifactInfo> {
     var nameSuffix = fileName.toString()
     // Validate artifact ID
     if (!nameSuffix.startsWith(gav.artifactId + "-")) return Result.failure(IllegalArgumentException(
-        "Artifact filename prefix should match artifact ID (${gav.artifactId}): $this"
+        "Artifact filename prefix should match artifact ID (${gav.artifactId}): $fullPath"
     ))
     nameSuffix = nameSuffix.drop(gav.artifactId.length + 1)
 
@@ -245,7 +245,7 @@ internal fun Path.extractArtifactInfo(): Result<ArtifactInfo> {
         if (!nameSuffix.startsWith(gav.version)) return Result.failure(IllegalArgumentException(
             "Artifact ID in a filename does not contain a version, " +
                     "or the version does not match a version " +
-                    "extracted from a parent directory name (${gav.version}): $this"
+                    "extracted from a parent directory name (${gav.version}): $fullPath"
         ))
         nameSuffix = nameSuffix.drop(gav.version.length)
         gav.version
@@ -257,7 +257,7 @@ internal fun Path.extractArtifactInfo(): Result<ArtifactInfo> {
         val re = Regex("(${Regex.escape(versionPrefix)}[0-9]{8}\\.[0-9]{6}-[0-9]+).+")
         val match = re.matchEntire(nameSuffix) ?: return Result.failure(IllegalArgumentException(
             "Invalid snapshot version format in filename: it should be either ${gav.version} or " +
-                    "match the pattern ${versionPrefix}YYYYMMDD.HHMMSS-N: $this"
+                    "match the pattern ${versionPrefix}YYYYMMDD.HHMMSS-N: $fullPath"
         ))
         match.groupValues[1].also {
             nameSuffix = nameSuffix.drop(it.length)
@@ -269,13 +269,13 @@ internal fun Path.extractArtifactInfo(): Result<ArtifactInfo> {
 
     // Extract and validate a classifier (a substring between the version and the extension) and an extension.
     val dotPos = nameSuffix.indexOf('.')
-    if (dotPos < 0) return Result.failure(IllegalArgumentException("Artifact file has no extension: $this"))
+    if (dotPos < 0) return Result.failure(IllegalArgumentException("Artifact file has no extension: $fullPath"))
     val classifier = nameSuffix.substring(0, dotPos)
     var extension = nameSuffix.substring(dotPos + 1)
     // "grp/artfct/0.0.0/artfct-0.0.0.asc" are not allowed, signature (or checksum) should correspond to some other
     // file that has an extension.
     if (extension in specialExtensions) return Result.failure(IllegalArgumentException(
-        "Signature or checksum files are not allowed for artifacts without an extension: $this"
+        "Signature or checksum files are not allowed for artifacts without an extension: $fullPath"
     ))
 
     // The very last part of an extension, if it has multiple dots. I.e. "asc" for "tar.gz.asc".
@@ -302,7 +302,7 @@ internal fun Path.extractArtifactInfo(): Result<ArtifactInfo> {
 
     return Result.success(ArtifactInfo(
         gav,
-        this.resolveSibling(fileNameWithoutSuffix),
+        fullPath.resolveSibling(fileNameWithoutSuffix),
         extension,
         classifier,
         signatureType,

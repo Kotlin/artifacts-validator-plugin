@@ -144,7 +144,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
         runAndFail("validateArtifacts") {
             checkTaskStatus(":validateArtifacts", TaskOutcome.FAILED)
             outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
-            outputContains("[Artifacts Validation] Artifact org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1.pom is not signed.")
+            outputContains("org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1.pom is not signed.")
             outputContains("Some artifacts were not signed or missing checksum files. See log for more details.")
         }
     }
@@ -166,7 +166,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
         runAndFail("validateArtifacts") {
             checkTaskStatus(":validateArtifacts", TaskOutcome.FAILED)
             outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
-            outputContains("[Artifacts Validation] Artifact org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1.pom is missing following checksums: [MD5, SHA1]")
+            outputContains("org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1.pom is missing following checksums: [MD5, SHA1]")
             outputContains("Some artifacts were not signed or missing checksum files. See log for more details.")
         }
     }
@@ -189,7 +189,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
         runAndFail("validateArtifacts") {
             checkTaskStatus(":validateArtifacts", TaskOutcome.FAILED)
             outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
-            outputContains("[Artifacts Validation] Artifact org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1.pom is missing following checksums: [SHA1]")
+            outputContains("org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1.pom is missing following checksums: [SHA1]")
             outputContains("Some artifacts were not signed or missing checksum files. See log for more details.")
         }
     }
