@@ -13,6 +13,7 @@ plugins {
     alias(libs.plugins.gradle.publish.plugin)
     alias(libs.plugins.kotlinx.kover)
     alias(libs.plugins.binary.compatibility.validator)
+    alias(libs.plugins.dokka)
 }
 
 group = "org.jetbrains.kotlinx"

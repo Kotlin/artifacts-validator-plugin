@@ -1,5 +1,6 @@
 [versions]
 publishPlugin = "2.0.0"
+dokka = "2.2.0-Beta"
 kover = "0.9.7"
 bcv = "0.18.1"
 
@@ -9,3 +10,4 @@ bcv = "0.18.1"
 gradle-publish-plugin = { id = "com.gradle.plugin-publish", version.ref = "publishPlugin" }
 kotlinx-kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 binary-compatibility-validator = { id = "org.jetbrains.kotlinx.binary-compatibility-validator", version.ref = "bcv" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
