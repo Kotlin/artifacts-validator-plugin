@@ -7,11 +7,12 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    kotlin("jvm")
     `java-gradle-plugin`
     id("publication-conventions")
     alias(libs.plugins.gradle.publish.plugin)
     alias(libs.plugins.kotlinx.kover)
+    alias(libs.plugins.binary.compatibility.validator)
 }
 
 group = "org.jetbrains.kotlinx"
@@ -21,9 +22,15 @@ repositories {
     mavenCentral()
 }
 
+configurations.create("functionalTestImplementation")
+
 dependencies {
     compileOnly(gradleApi())
     testImplementation(kotlin("test"))
+    "functionalTestImplementation"(kotlin("test"))
+    "functionalTestImplementation"(kotlin("test-junit5"))
+    "functionalTestImplementation"(gradleApi())
+    "functionalTestImplementation"(gradleTestKit())
 }
 
 java {
@@ -48,20 +55,10 @@ testing {
     suites {
         withType<JvmTestSuite>().configureEach {
             useJUnitJupiter()
-            dependencies {
-                implementation(project())
-                implementation(libs.kotlin.test)
-                implementation(libs.kotlin.test.junit5)
-            }
         }
 
         val functionalTest by creating(JvmTestSuite::class) {
             testType.set(FUNCTIONAL_TEST)
-
-            dependencies {
-                implementation(gradleApi())
-                implementation(gradleTestKit())
-            }
         }
 
         gradlePlugin.testSourceSets(functionalTest.sources)
@@ -90,9 +87,6 @@ gradlePlugin {
         }
     }
 }
-
-@OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
-kotlin.abiValidation.enabled = true
 
 kover {
     reports {
