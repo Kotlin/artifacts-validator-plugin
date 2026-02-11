@@ -6,13 +6,12 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.kotlin.jvm)
     `java-gradle-plugin`
-    signing
-    `maven-publish`
+    id("publication-conventions")
     alias(libs.plugins.gradle.publish.plugin)
 }
 
 group = "org.jetbrains.kotlinx"
-version = "1.0-SNAPSHOT"
+properties["DeployVersion"]?.let { version = it }
 
 repositories {
     mavenCentral()
@@ -88,49 +87,4 @@ gradlePlugin {
                 "Runs pre-publication checks on artifacts published to a local M2 repository"
         }
     }
-}
-
-@Suppress("UnstableApiUsage")
-publishing {
-    publications {
-        repositories {
-            maven {
-                name = "buildLocal"
-                setUrl(project.layout.buildDirectory.dir("repo"))
-            }
-        }
-
-        withType<MavenPublication>().configureEach {
-            pom {
-                name = project.name
-                description = "Maven artifacts validator plugin"
-                url = "https://github.com/Kotlin/" // TBD
-
-                licenses {
-                    license {
-                        name = "Apache-2.0"
-                        url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
-                        distribution = "repo"
-                    }
-                }
-
-                developers {
-                    developer {
-                        id = "JetBrains"
-                        name = "JetBrains Team"
-                        organization = "JetBrains"
-                        organizationUrl = "https://www.jetbrains.com"
-                    }
-                }
-
-                scm {
-                    url = "https://github.com/Kotlin/" // TBD
-                }
-            }
-        }
-    }
-}
-
-signing {
-    isRequired = false // TODO: configure later
 }
