@@ -19,8 +19,8 @@ abstract class PluginTestBase(val resourcesPath: String) {
         var requireSignatures: Boolean? = null
         var requireChecksums: Set<String>? = null
         var artifactsList: String? = null
+        var artifactsLists: Map<String, String>? = null
         var artifactsRepository: String? = null
-        var artifactsVersion: String? = null
 
         fun toConfig(): String = buildString {
             appendLine("artifactsValidation {")
@@ -30,9 +30,13 @@ abstract class PluginTestBase(val resourcesPath: String) {
                 val values = it.joinToString(",") { "\"$it\"" }
                 appendLine("requireChecksums.set(setOf($values))")
             }
-            artifactsList?.let { appendLine("artifactsList =  project.rootDir.resolve(\"$it\")") }
-            artifactsRepository?.let { appendLine("artifactsRepository =  project.rootDir.resolve(\"$it\")") }
-            artifactsVersion?.let { appendLine("artifactsVersion = \"$it\"") }
+            artifactsList?.let { appendLine("artifactsList(project.rootDir.resolve(\"$it\"))") }
+            artifactsLists?.let {
+                it.forEach { (file, version) ->
+                    appendLine("artifactsList(project.rootDir.resolve(\"$file\"), \"$version\")")
+                }
+            }
+            artifactsRepository?.let { appendLine("artifactsRepository = project.rootDir.resolve(\"$it\")") }
             appendLine("}")
         }
     }

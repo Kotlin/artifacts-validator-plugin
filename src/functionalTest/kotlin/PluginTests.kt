@@ -53,7 +53,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
         createFile("build/repo/org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1.pom")
         runAndFail("validateArtifacts") {
             checkTaskStatus(":validateArtifacts", TaskOutcome.FAILED)
-            outputContains("Artifacts list file does not exist: artifacts.txt")
+            outputContains("Artifacts list file does not exist:")
         }
     }
 
@@ -226,8 +226,9 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
 
         runAndFail("validateArtifacts") {
             checkTaskStatus(":validateArtifacts", TaskOutcome.FAILED)
-            outputContains("[Artifacts Validation] Error while parsing rules file: Rule should contain exactly one '/', was: \"is it a rules file or what?\"")
-            outputContains("Failed to load rules file from artifacts.txt. See log for more details.")
+            outputContains("[Artifacts Validation] Error while parsing rules file ")
+            outputContains("artifacts.txt: Rule should contain exactly one '/', was: \"is it a rules file or what?\"")
+            outputContains("Failed to load rules file from files. See log for more details.")
         }
     }
 
@@ -249,7 +250,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
 
         run("validateArtifacts", "--dump") {
             checkTaskStatus(":validateArtifacts", TaskOutcome.SUCCESS)
-            outputContains("[Artifacts Validation] Artifact rules were saved to artifacts.txt")
+            outputContains("[Artifacts Validation] Artifact rules were saved to ")
 
             val generatedArtifactsFile = projectRoot.resolve("artifacts.txt").readText()
             assertEquals("""
@@ -312,6 +313,177 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
             )
             outputContains("/build/repo/org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1-sources: Artifact file has no extension:")
             outputContains("Errors were detected while loading artifacts info. See log for details")
+        }
+    }
+
+    @Test
+    fun overrideVersion() {
+        copySettingsKts()
+        copyBuildKts {
+            artifactsLists = mapOf("artifacts.txt" to "1.0-custom")
+            artifactsRepository = "build/repo"
+        }
+
+        createFile("artifacts.txt", """
+        org.example:artifact/.pom
+        """.trimIndent())
+
+        createFile("build/repo/org/example/artifact/1.0-custom/artifact-1.0-custom.pom")
+
+        run("validateArtifacts") {
+            checkTaskStatus(":validateArtifacts", TaskOutcome.SUCCESS)
+            outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
+        }
+    }
+
+    @Test
+    fun unexpectedVersionInRepository() {
+        copySettingsKts()
+        copyBuildKts {
+            artifactsList = "artifacts.txt"
+            artifactsRepository = "build/repo"
+        }
+
+        createFile("artifacts.txt", """
+        org.example:artifact/.pom
+        """.trimIndent())
+
+        createFile("build/repo/org/example/artifact/0.0.1/artifact-0.0.1.pom")
+        createFile("build/repo/org/example/artifact/1.0-custom/artifact-1.0-custom.pom")
+
+        runAndFail("validateArtifacts") {
+            checkTaskStatus(":validateArtifacts", TaskOutcome.FAILED)
+            outputContains("[Artifacts Validation] Following artifacts were not expected, but were found: org.example:artifact-1.0-custom.pom")
+            outputContains("List of found artifacts does not match list of expected artifacts. See log for more details.")
+        }
+    }
+
+    @Test
+    fun artifactsWithMultipleVersions() {
+        copySettingsKts()
+        copyBuildKts {
+            artifactsRepository = "build/repo"
+            artifactsLists = mapOf(
+                "artifacts.core.txt" to "0.0.1",
+                "artifacts.ext.txt" to "2025a-0.0.1",
+            )
+        }
+
+        createFile("artifacts.core.txt", """
+        org.example:artifact-core/.pom
+        """.trimIndent())
+
+        createFile("artifacts.ext.txt", """
+        org.example:artifact-ext/.pom
+        """.trimIndent())
+
+        createFile("build/repo/org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom")
+        createFile("build/repo/org/example/artifact-ext/2025a-0.0.1/artifact-ext-2025a-0.0.1.pom")
+
+        run("validateArtifacts") {
+            checkTaskStatus(":validateArtifacts", TaskOutcome.SUCCESS)
+            outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
+        }
+    }
+
+    @Test
+    fun dumpRulesIntoMultipleFiles() {
+        copySettingsKts()
+        copyBuildKts {
+            artifactsRepository = "build/repo"
+            artifactsLists = mapOf(
+                "artifacts.core.txt" to "0.0.1",
+                "artifacts.ext.txt" to "2025a-0.0.1",
+            )
+        }
+
+        createFile("build/repo/org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom")
+        createFile("build/repo/org/example/artifact-ext/2025a-0.0.1/artifact-ext-2025a-0.0.1.pom")
+
+        // @Option does not work well with DirectoryProperty for older Gradle versions:
+        // https://github.com/gradle/gradle/issues/12009
+        useGradleVersion("8.5")
+
+        run("validateArtifacts", "--dump") {
+            checkTaskStatus(":validateArtifacts", TaskOutcome.SUCCESS)
+            outputContains("[Artifacts Validation] Artifact rules were saved to ")
+
+            assertEquals("""
+            org.example:artifact-core/.pom
+            
+            """.trimIndent(), projectRoot.resolve("artifacts.core.txt").readText())
+
+            assertEquals("""
+            org.example:artifact-ext/.pom
+            
+            """.trimIndent(), projectRoot.resolve("artifacts.ext.txt").readText())
+        }
+    }
+
+    @Test
+    fun defaultListLocation() {
+        copySettingsKts()
+        copyBuildKts {
+            artifactsRepository = "build/repo"
+        }
+        createFile("gradle/artifacts.txt", """
+        org.jetbrains.kotlinx:basic-test-project/.pom
+        """.trimIndent())
+
+        createFile("build/repo/org/jetbrains/kotlinx/basic-test-project/0.0.1/basic-test-project-0.0.1.pom")
+
+        run("validateArtifacts") {
+            checkTaskStatus(":validateArtifacts", TaskOutcome.SUCCESS)
+            outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
+        }
+    }
+
+    @Test
+    fun artifactsListsCommandLineOptionParsing() {
+        copySettingsKts()
+        copyBuildKts {
+            artifactsRepository = "build/repo"
+        }
+
+        createFile("artifacts.core.txt", """
+        org.example:artifact-core/.pom
+        """.trimIndent())
+
+        createFile("artifacts.ext.txt", """
+        org.example:artifact-ext/.pom
+        """.trimIndent())
+
+        createFile("build/repo/org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom")
+        createFile("build/repo/org/example/artifact-ext/2025a-0.0.1/artifact-ext-2025a-0.0.1.pom")
+
+        // @Option does not work well with DirectoryProperty for older Gradle versions:
+        // https://github.com/gradle/gradle/issues/12009
+        useGradleVersion("8.5")
+
+        run(
+            "validateArtifacts",
+            "--artifacts-list=${projectRoot.resolve("artifacts.core.txt")}",
+            "--artifacts-list=${projectRoot.resolve("artifacts.ext.txt")}:2025a-0.0.1",
+            "--stacktrace"
+        ) {
+            checkTaskStatus(":validateArtifacts", TaskOutcome.SUCCESS)
+            outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
+        }
+    }
+
+    @Test
+    fun artifactsListsCommandLineOptionInvalidValue() {
+        copySettingsKts()
+        copyBuildKts {
+            artifactsRepository = "build/repo"
+        }
+
+        // @Option does not work well with DirectoryProperty for older Gradle versions:
+        // https://github.com/gradle/gradle/issues/12009
+        useGradleVersion("8.5")
+
+        runAndFail("validateArtifacts", "--artifacts-list=a:b:c") {
+            outputContains("artifacts-list value must contain at most one ':' delimiting file and a version, was: \"a:b:c\".")
         }
     }
 }

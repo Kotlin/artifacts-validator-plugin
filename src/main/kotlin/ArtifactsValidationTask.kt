@@ -3,21 +3,25 @@ package kotlinx.validation
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
-import org.gradle.api.tasks.*
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
 import org.gradle.work.DisableCachingByDefault
+import java.io.File
 import java.util.*
 
 @DisableCachingByDefault
 public abstract class ArtifactsValidationTask : DefaultTask() {
-    init {
-        dumpTo.convention(artifactsListFile)
-    }
-
+    /**
+     * A directory containing artifacts to validate.
+     *
+     * The directory is expected to have a [Maven repository layout](https://maven.apache.org/repository/layout.html).
+     */
     @get:InputDirectory
     @get:Option(
         option = "artifacts-dir",
@@ -26,22 +30,57 @@ public abstract class ArtifactsValidationTask : DefaultTask() {
     )
     public abstract val artifactsRepositoryDir: DirectoryProperty
 
-    // TODO: update readme
-    @get:InputFiles // When dumping artifacts list, this file don't have to exist. InputFiles does the trick here.
-    @get:Option(
-        option = "artifacts-list",
-        description = "A file with a list of expected artifacts. See <README> for the format description. " +
-                "By default, it is 'gradle/artifacts.txt'."
-    )
-    public abstract val artifactsListFile: RegularFileProperty
-
+    /**
+     * Lists of rules describing expected artifacts associated with
+     * an expected version artifacts corresponding to these rules.
+     *
+     * If any `--artifacts-list` value was specified on the command line,
+     * its value will override this property.
+     */
     @get:Input
-    @get:Option(
-        option = "artifacts-version",
-        description = "Expected version of validated artifacts. By default, the current project version will be used."
-    )
-    public abstract val artifactsVersion: Property<String>
+    public abstract val artifactLists: MapProperty<File, String>
 
+    /**
+     * Command line option parser for [artifactLists]. Overrides all values specified in [artifactLists].
+     */
+    @Option(
+        option = "artifacts-list",
+        description = "A path to a file listing artifacts to validate and their expected version, separated by column. " +
+                "If there's no comma and version following it, a version attribute of a project will be used instead. " +
+                "For example, \"gradle/artifacts.extended.txt:0.1.1-dev.1\". This option is aimed for projects " +
+                "publishing multiple artifacts versions simultaneously. " +
+                "It overrides all values specified in artifactLists property."
+    )
+    public fun artifactsListOption(values: List<String>) {
+        values.forEach { fileAndVersion ->
+            val commasCount = fileAndVersion.count { it == ':' }
+            if (commasCount > 1) {
+                throw GradleException(
+                    "artifacts-list value must contain at most one ':' delimiting file and a version, " +
+                            "was: \"$fileAndVersion\"."
+                )
+            }
+            if (commasCount == 0) {
+                cliArtifactLists[File(fileAndVersion)] = project.version.toString()
+            } else {
+                val (file, version) = fileAndVersion.split(':', limit = 2)
+                cliArtifactLists[File(file)] = version
+            }
+        }
+    }
+
+    private val cliArtifactLists: MutableMap<File, String> = mutableMapOf()
+
+    /**
+     * Selects either [cliArtifactLists] or [artifactLists].
+     */
+    private fun finalArtifactsLists(): Map<File, String> = cliArtifactLists.ifEmpty {
+        artifactLists.get()
+    }
+
+    /**
+     * Verify that each artifact has a corresponding signature file (`.asc`-file).
+     */
     @get:Input
     @get:Optional
     @get:Option(
@@ -52,6 +91,11 @@ public abstract class ArtifactsValidationTask : DefaultTask() {
     public abstract val requireSignatures: Property<Boolean>
 
     // TODO: verify checksums
+    /**
+     * Verify that each artifact has a set of checksum files (like `.md5`, `.sha1``) associated with.
+     * If the set is empty, checksum files are not required, otherwise an artifact has to have checksum
+     * files associated with all listed checksum algorithms.
+     */
     @get:Input
     @get:Optional
     @get:Option(
@@ -62,6 +106,14 @@ public abstract class ArtifactsValidationTask : DefaultTask() {
     )
     public abstract val requireChecksums: SetProperty<String>
 
+    /**
+     * Dump rules describing artifacts from [artifactsRepositoryDir] into files from [artifactLists]
+     * instead of performing the validation.
+     *
+     * Artifacts from [artifactsRepositoryDir] a filtered by a version from [artifactLists] when
+     * written to an associated file. There are no other criteria to distribute rules among multiple
+     * files from [artifactLists].
+     */
     @get:Input
     @get:Optional
     @get:Option(
@@ -71,21 +123,11 @@ public abstract class ArtifactsValidationTask : DefaultTask() {
     )
     public abstract val dump: Property<Boolean>
 
-    @get:OutputFile
-    @get:Optional
-    @get:Option(
-        option = "dump-to",
-        description = "Path to an artifacts file that should be generated when running the task in the dump mode. " +
-                "By default, it is the same path as artifactsListFile (or its command line version --artifacts-list)."
-    )
-    public abstract val dumpTo: RegularFileProperty
-
     @TaskAction
     public fun validate() {
-        val version = artifactsVersion.getOrElse(project.version.toString())
         // get the value earlier to validate task inputs
         val checksums = parseChecksumTypes()
-        val artifacts = loadArtifacts(version)
+        val artifacts = loadArtifacts()
 
         if (dump.getOrElse(false)) {
             dumpArtifacts(artifacts)
@@ -93,7 +135,7 @@ public abstract class ArtifactsValidationTask : DefaultTask() {
         }
 
         val rules = loadRules()
-        compareArtifacts(version, rules, artifacts)
+        compareArtifacts(rules, artifacts)
 
         validateAttributes(artifacts, requireSignatures.getOrElse(false), checksums)
     }
@@ -116,56 +158,61 @@ public abstract class ArtifactsValidationTask : DefaultTask() {
     private fun debug(message: String) = logger.debug("$logMessagePrefix$message")
     private fun lifecycle(message: String) = logger.lifecycle("$logMessagePrefix$message")
 
-    private fun loadArtifacts(version: String): List<AggregatedArtifactInfo> {
+    private fun loadArtifacts(): List<AggregatedArtifactInfo> {
         val repositoryRoot = artifactsRepositoryDir.get().asFile.toPath()
         var hasErrors = false
         debug("Loading artifacts from $repositoryRoot")
         val artifacts = repositoryRoot.scanRepository(SnapshotResolutionStrategy.LATEST_FILE) { path, exception ->
             error("Error detecting while reading file $path: ${exception.message}")
             hasErrors = true
-        }.filter { it.gav.version == version }
-        if (artifacts.isEmpty()) warn("No artifacts with version $version were found in $repositoryRoot")
+        }
+        if (artifacts.isEmpty()) warn("No artifacts were found in $repositoryRoot")
         if (hasErrors) throw GradleException("Errors were detected while loading artifacts info. See log for details")
         return artifacts
     }
 
-    private fun loadRules(): List<ArtifactRule> {
+    private fun loadRules(): Map<File, List<ArtifactRule>> {
+        val file2rule = mutableMapOf<File, List<ArtifactRule>>()
         var hasErrors = false
-        val file = artifactsListFile.get().asFile
-        if (!file.exists()) {
-            throw GradleException("Artifacts list file does not exist: ${file.relativeTo(project.rootDir)}")
-        }
-        debug("Loading artifact rules from ${file.relativeTo(project.rootDir)}")
-        return file.readLines().filter { it.isNotBlank() }.flatMap {
-            try {
-                ArtifactRule.parseRule(it)
-            } catch (e: IllegalArgumentException) {
-                error("Error while parsing rules file: ${e.message}")
+
+        finalArtifactsLists().forEach { (file, _) ->
+            if (!file.exists()) {
+                error("Artifacts list file does not exist: $file")
                 hasErrors = true
-                emptyList()
             }
-        }.also {
-            if (hasErrors) {
-                throw GradleException("Failed to load rules file from ${file.relativeTo(project.rootDir)}. " +
-                        "See log for more details.")
+            debug("Loading artifact rules from $file")
+            val rules = file.readLines().filter { it.isNotBlank() }.flatMap {
+                try {
+                    ArtifactRule.parseRule(it)
+                } catch (e: IllegalArgumentException) {
+                    error("Error while parsing rules file $file: ${e.message}")
+                    hasErrors = true
+                    emptyList()
+                }
             }
+            if (!hasErrors) file2rule[file] = rules
         }
+        if (hasErrors) throw GradleException("Failed to load rules file from files. See log for more details.")
+        return file2rule
     }
 
     private fun dumpArtifacts(artifacts: List<AggregatedArtifactInfo>) {
-        val file = dumpTo.getOrElse { artifactsListFile.get().asFile }.asFile
-        debug("Updating artifact rules in file ${file.relativeTo(project.rootDir)}")
-        file.bufferedWriter(Charsets.UTF_8).use { writer ->
-            artifacts.toRules().sorted().forEach { rule ->
-                writer.appendLine(rule)
+        finalArtifactsLists().forEach { (file, version) ->
+            debug("Updating artifact rules in file $file")
+            file.bufferedWriter(Charsets.UTF_8).use { writer ->
+                artifacts.filter { it.gav.version == version }.toRules().sorted().forEach { rule ->
+                    writer.appendLine(rule)
+                }
             }
+
+            lifecycle("Artifact rules were saved to $file")
         }
-        lifecycle("Artifact rules were saved to ${file.relativeTo(project.rootDir)}")
     }
 
-    private fun compareArtifacts(version: String, rules: List<ArtifactRule>, artifacts: List<AggregatedArtifactInfo>) {
-        val expectedArtifacts = rules.mapTo(TreeSet<String>()) {
-            it.toArtifactIdentifier(version)
+    private fun compareArtifacts(rules: Map<File, List<ArtifactRule>>, artifacts: List<AggregatedArtifactInfo>) {
+        val expectedArtifacts = rules.flatMapTo(TreeSet<String>()) {
+            val version = finalArtifactsLists()[it.key]!!
+            it.value.map { it.toArtifactIdentifier(version) }
         }
         val actualArtifacts = artifacts.flatMapTo(TreeSet<String>()) {
             it.artifacts.map { it.artifact.toArtifactIdentifier() }
@@ -193,9 +240,9 @@ public abstract class ArtifactsValidationTask : DefaultTask() {
 
         error(
             "To update the list of expected artifacts, run the ${this.name} task with the --dump flag: " +
-                    "\"${this.path} --dump --artifacts-version=${version} " +
-                    "--artifacts-dir=${artifactsRepositoryDir.get().asFile.relativeTo(project.rootDir)} " +
-                    "--artifacts-list=${artifactsListFile.get().asFile.relativeTo(project.rootDir)}"
+                    "\"${this.path} --dump " + finalArtifactsLists().entries.joinToString(" ") { (f, v) ->
+                "--artifacts-list=\"$f\":$v\""
+            }
         )
 
         throw GradleException(
