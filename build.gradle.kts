@@ -81,7 +81,7 @@ gradlePlugin {
     plugins {
         create("artifacts-validator-plugin") {
             id = "org.jetbrains.kotlinx.artifacts-validator-plugin"
-            implementationClass = "kotlinx.validation.ArtifactsValidatorPlugin"
+            implementationClass = "kotlinx.validation.ArtifactsValidationSettingsPlugin"
             displayName = "Maven artifacts validator plugin"
             description =
                 "Runs pre-publication checks on artifacts published to a local M2 repository"

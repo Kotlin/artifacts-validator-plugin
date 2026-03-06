@@ -60,9 +60,10 @@ internal data class ArtifactRule(
         }
     }
 
-    fun toArtifactIdentifier(withVersion: String): String {
+    fun toArtifactIdentifier(withVersion: String?): String {
         val classifierStr = if (classifier.isEmpty()) "" else "-${classifier}"
-        return "$groupId:$artifactId-$withVersion$classifierStr.$extension"
+        val versionStr = if (withVersion == null) "" else "-$withVersion"
+        return "$groupId:$artifactId$versionStr$classifierStr.$extension"
     }
 }
 

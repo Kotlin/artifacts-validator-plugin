@@ -1,108 +1,110 @@
 package kotlinx.validation
 
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.provider.MapProperty
-import org.gradle.api.provider.Property
-import org.gradle.api.provider.Provider
-import org.gradle.api.provider.SetProperty
-import org.gradle.api.tasks.TaskContainer
-import org.gradle.api.tasks.TaskProvider
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.initialization.ProjectDescriptor
+import org.gradle.api.initialization.Settings
+import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.language.base.plugins.LifecycleBasePlugin
 import java.io.File
-import javax.inject.Inject
 
-public class ArtifactsValidatorPlugin : Plugin<Project> {
-    override fun apply(project: Project) {
-        val extension = project.extensions.create(
-            ArtifactsValidatorPluginExtension::class.java,
-            "artifactsValidation",
-            ArtifactsValidatorPluginExtensionImpl::class.java
-        )
-        extension.enabled.convention(true)
-        extension.requireSignatures.convention(false)
-        extension.requireChecksums.convention(emptySet())
-        extension.artifactLists.convention(project.provider {
-            mapOf(
-                project.rootDir.resolve("gradle").resolve("artifacts.txt") to
-                project.version.toString()
-            )
-        })
+private fun Project.applyRecursively(block: Project.() -> Unit) {
+    block()
+    childProjects.forEach { (_, project) -> project.applyRecursively(block) }
+}
 
-        project.tasks.register("validateArtifacts", ArtifactsValidationTask::class.java) {
-            with(it) {
-                group = "verification"
-                description = "Validate artifacts in the specified local Maven M2 repository"
-                onlyIf { extension.enabled.get() }
-                artifactsRepositoryDir.set(extension.artifactsRepository)
-                artifactLists.set(extension.artifactLists)
-                requireChecksums.set(extension.requireChecksums)
-                requireSignatures.set(extension.requireSignatures)
+public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
+    public companion object {
+        public const val CHECK_ARTIFACTS_TASK_NAME: String = "checkArtifacts"
+        public const val DUMP_ARTIFACTS_TASK_NAME: String = "dumpArtifacts"
+    }
+
+    override fun apply(target: Settings) {
+        val ext = target.extensions.create(
+            ArtifactsValidatorPluginSettingsExtension::class.java,
+            "artifactsValidation", ArtifactsValidatorPluginSettingsExtensionImpl::class.java
+        ) as ArtifactsValidatorPluginSettingsExtensionImpl
+
+        val rootDirPath = target.rootDir.toPath()
+
+        ext.defaultArtifactsDumpFile.set(target.rootDir.resolve("gradle/artifacts.txt"))
+
+        target.gradle.beforeProject { project ->
+            if (project.path != ":") return@beforeProject
+
+            val p2f = ext.projectPath2dumpFile
+            val defaultDumpFile = ext.defaultArtifactsDumpFile.get().asFile
+
+            if (!defaultDumpFile.toPath().normalize().startsWith(rootDirPath)) {
+                throw GradleException("Artifacts dump file must be located within the project directory: $defaultDumpFile")
+            }
+
+            p2f.forEach { (_, file) ->
+                val normalizedPath = file.toPath().normalize()
+                if (!normalizedPath.startsWith(rootDirPath)) {
+                    throw GradleException("Artifacts dump file must be located within the project directory: $file")
+                }
+            }
+
+            val checkTask =
+                project.tasks.register(CHECK_ARTIFACTS_TASK_NAME, PublicationArtifactsValidationTask::class.java) {
+                    // TODO: if all projects have an explicitly configure file in p2f map,
+                    //       there will be an error about non-existent defaultDumpFile (if it does not exist)
+                    it.artifactsDumpFiles.from(defaultDumpFile)
+                    it.artifactsDumpFiles.from(p2f.values)
+                }
+
+            project.tasks.configureEach {
+                if (it.name == LifecycleBasePlugin.CHECK_TASK_NAME) {
+                    it.dependsOn(checkTask)
+                }
+            }
+
+            val dumpTask = project.tasks.register(DUMP_ARTIFACTS_TASK_NAME, PublicationArtifactsDumpTask::class.java) {
+                it.defaultArtifactsDumpFile.set(defaultDumpFile)
+                p2f.forEach { (project, file) ->
+                    it.artifactsDumpFiles.put(project, file)
+                }
+            }
+
+            project.tasks.register("validateArtifacts", ArtifactsValidationTask::class.java)
+
+            project.applyRecursively {
+                this.afterEvaluate {
+                    val ext = it.extensions.findByType(PublishingExtension::class.java)
+                    if (ext == null) {
+                        logger.info("Publication was not configured for the project: ${this.name}, skipping artifacts validation setup.")
+                        return@afterEvaluate
+                    }
+                    // TODO: can we really do that?
+                    ext.publications.configureEach { publication ->
+                        if (publication is MavenPublication) {
+                            checkTask.configure { it.addPublication(this, publication) }
+                            dumpTask.configure { it.addPublication(this, publication) }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-public abstract class ArtifactsValidatorPluginExtension {
-    /**
-     * Enables or disables validation task. It is enabled by default.
-     */
-    public abstract val enabled: Property<Boolean>
+public interface ArtifactsValidatorPluginSettingsExtension {
+    public val defaultArtifactsDumpFile: RegularFileProperty
 
-    /**
-     * Directory containing artifacts to validate. The directory should have a Maven repository layout.
-     */
-    public abstract val artifactsRepository: DirectoryProperty
-
-    /**
-     * Files with rules describing expected artifacts associated with a version these artifacts should have.
-     */
-    public abstract val artifactLists: MapProperty<File, String>
-
-    /**
-     * Verify signature files existence.
-     */
-    public abstract val requireSignatures: Property<Boolean>
-
-    /**
-     * Verify that checksum files for specified algorithms exist.
-     * Empty set imply that an artifact does not have to has a checksum file.
-     */
-    public abstract val requireChecksums: SetProperty<String>
-
-    /**
-     * Validation task provider.
-     */
-    public abstract val task: TaskProvider<ArtifactsValidationTask>
-
-    /**
-     * Add a [list file][listFile] to [artifactLists]. The associated version will be [Project.version].
-     */
-    public abstract fun artifactsList(listFile: File)
-
-    /**
-     * Add a [list file][listFile] associated with a [version] to [artifactLists].
-     */
-    public fun artifactsList(listFile: File, version: String) {
-        artifactLists.put(listFile, version)
-    }
-
-    /**
-     * Add a [list file][listFile] associated with a version provided by the [versionProvider] to [artifactLists].
-     */
-    public fun artifactsList(listFile: File, versionProvider: Provider<String>) {
-        artifactLists.put(listFile, versionProvider)
-    }
+    public fun dumpFileForProjects(file: File, project: ProjectDescriptor, vararg projects: ProjectDescriptor)
 }
 
-internal abstract class ArtifactsValidatorPluginExtensionImpl @Inject constructor(
-    val tasks: TaskContainer,
-    val project: Project
-) : ArtifactsValidatorPluginExtension() {
-    override val task: TaskProvider<ArtifactsValidationTask>
-        get() = tasks.named("validateArtifacts", ArtifactsValidationTask::class.java)
+internal abstract class ArtifactsValidatorPluginSettingsExtensionImpl : ArtifactsValidatorPluginSettingsExtension {
+    internal val projectPath2dumpFile = mutableMapOf<String, File>()
 
-    override fun artifactsList(listFile: File) {
-        artifactsList(listFile, project.version.toString())
+    override fun dumpFileForProjects(file: File, project: ProjectDescriptor, vararg projects: ProjectDescriptor) {
+        projectPath2dumpFile[project.path] = file
+        projects.forEach { project ->
+            projectPath2dumpFile[project.path] = file
+        }
     }
 }

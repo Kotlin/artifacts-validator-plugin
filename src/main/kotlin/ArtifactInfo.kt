@@ -76,7 +76,7 @@ internal fun Path.scanRepository(
         }
     )
 
-    return allArtifacts.groupArtifacts( snapshotResolutionStrategy, onError)
+    return allArtifacts.groupArtifacts(snapshotResolutionStrategy, onError)
 }
 
 private fun Collection<ArtifactInfo>.groupArtifacts(
@@ -201,9 +201,10 @@ internal data class ArtifactInfo(
     val fileName: String
         get() = filePath.fileName.toString()
 
-    fun toArtifactIdentifier(): String {
+    fun toArtifactIdentifier(includeVersion: Boolean = true): String {
         val classifierStr = if (classifier.isEmpty()) "" else "-${classifier}"
-        return "${gav.groupId}:${gav.artifactId}-${gav.version}$classifierStr.$extension"
+        val versionStr = if (includeVersion) "-${gav.version}" else ""
+        return "${gav.groupId}:${gav.artifactId}$versionStr$classifierStr.$extension"
     }
 }
 
