@@ -30,14 +30,14 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
     }
 
     @Test
-    fun checkArtifactsFailsWhenRulesFileIsMissing() {
+    fun checkArtifactsWithoutRulesFile() {
         copySettingsKts()
         copyBuildKts(publicationBlock(artifactId = "basic-test-project"))
 
         runAndFail("checkArtifacts") {
             checkTaskStatus(":checkArtifacts", TaskOutcome.FAILED)
-            outputContains("Files describing expected artifacts does not exist:")
-            outputContains("To generate the file, run the 'dumpArtifacts' task.")
+            outputContains("[Artifacts Validation] Following artifacts were not expected, but were found: " +
+                    "org.jetbrains.kotlinx:basic-test-project.jar, org.jetbrains.kotlinx:basic-test-project.pom")
         }
     }
 
@@ -85,7 +85,8 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
             """
 
             extensions.configure<kotlinx.validation.ArtifactsValidatorPluginSettingsExtension>("artifactsValidation") {
-                defaultArtifactsDumpFile.set(rootDir.resolve("expected/custom-artifacts.txt"))
+                dumpFileNamePrefix.set("custom-artifacts")
+                dumpFileRootDirectory.set(rootDir.resolve("expected"))
             }
             """.trimIndent()
         )
@@ -106,8 +107,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
             include(":ext")
 
             extensions.configure<kotlinx.validation.ArtifactsValidatorPluginSettingsExtension>("artifactsValidation") {
-                dumpFileForProjects(rootDir.resolve("gradle/lib-artifacts.txt"), project(":lib"))
-                dumpFileForProjects(rootDir.resolve("gradle/ext-artifacts.txt"), project(":ext"))
+                usePerProjectDumps.set(true)
             }
             """.trimIndent()
         )
@@ -127,11 +127,11 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
 
         assertEquals(
             "org.jetbrains.kotlinx:lib/.jar,.pom\n",
-            projectRoot.resolve("gradle/lib-artifacts.txt").readText()
+            projectRoot.resolve("gradle/artifacts-lib.txt").readText()
         )
         assertEquals(
             "org.jetbrains.kotlinx:ext/.jar,.pom\n",
-            projectRoot.resolve("gradle/ext-artifacts.txt").readText()
+            projectRoot.resolve("gradle/artifacts-ext.txt").readText()
         )
     }
 
@@ -144,8 +144,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
             include(":ext")
 
             extensions.configure<kotlinx.validation.ArtifactsValidatorPluginSettingsExtension>("artifactsValidation") {
-                dumpFileForProjects(rootDir.resolve("gradle/lib-artifacts.txt"), project(":lib"))
-                dumpFileForProjects(rootDir.resolve("gradle/ext-artifacts.txt"), project(":ext"))
+                usePerProjectDumps.set(true)
             }
             """.trimIndent()
         )
@@ -158,9 +157,9 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
             "ext/build.gradle.kts",
             publicationBlock(artifactId = "ext")
         )
-        createFile("gradle/artifacts.txt")
-        createFile("gradle/lib-artifacts.txt", "org.jetbrains.kotlinx:lib/.jar,.pom\n")
-        createFile("gradle/ext-artifacts.txt", "org.jetbrains.kotlinx:ext/.jar,.pom\n")
+        createFile("gradle/artifacts-basic-test-project.txt")
+        createFile("gradle/artifacts-lib.txt", "org.jetbrains.kotlinx:lib/.jar,.pom\n")
+        createFile("gradle/artifacts-ext.txt", "org.jetbrains.kotlinx:ext/.jar,.pom\n")
 
         run("checkArtifacts") {
             checkTaskStatus(":checkArtifacts", TaskOutcome.SUCCESS)

@@ -250,16 +250,7 @@ public abstract class PublicationArtifactsValidationTask : ArtifactsValidationTa
 
     @TaskAction
     public fun validate() {
-        val dumpFiles = artifactsDumpFiles.files
-
-        dumpFiles.forEach {
-            if (!it.exists()) {
-                throw GradleException(
-                    "Files describing expected artifacts does not exist: $it. " +
-                            "To generate the file, run the '$DUMP_ARTIFACTS_TASK_NAME' task."
-                )
-            }
-        }
+        val dumpFiles = artifactsDumpFiles.files.filter { it.exists() }
 
         val rules = dumpFiles.flatMap { file ->
             file.readLines()
@@ -286,6 +277,7 @@ public abstract class PublicationArtifactsDumpTask : DefaultTask() {
     public abstract val publications: ListProperty<PublicationDescriptor>
 
     @get:OutputFile
+    @get:Optional
     public abstract val defaultArtifactsDumpFile: RegularFileProperty
 
     @get:OutputFiles
@@ -299,11 +291,22 @@ public abstract class PublicationArtifactsDumpTask : DefaultTask() {
     public fun dump() {
         val project2publication = publications.get().groupBy { it.projectPath }
 
+        check(!(defaultArtifactsDumpFile.isPresent && artifactsDumpFiles.get().isNotEmpty())) {
+            "Either a default dump file, or a per-project dumps should configured, but not both"
+        }
+
         val file2publications = mutableMapOf<File, MutableList<PublicationDescriptor>>()
-        val defaultFile = defaultArtifactsDumpFile.get().asFile
 
         for ((project, publications) in project2publication) {
-            val file = artifactsDumpFiles.get().getOrDefault(project, defaultFile)
+            val file = if (defaultArtifactsDumpFile.isPresent) {
+                defaultArtifactsDumpFile.get().asFile
+            } else {
+                val projectDump = artifactsDumpFiles.get()[project]
+                check(projectDump != null) {
+                    "Dump was not configured for project $project"
+                }
+                projectDump
+            }
             file2publications.getOrPut(file) { mutableListOf() }.addAll(publications)
         }
 

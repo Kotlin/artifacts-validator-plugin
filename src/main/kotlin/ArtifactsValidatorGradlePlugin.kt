@@ -3,13 +3,14 @@ package kotlinx.validation
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.initialization.ProjectDescriptor
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.initialization.Settings
+import org.gradle.api.provider.Property
+import org.gradle.api.provider.SetProperty
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.configurationcache.problems.PropertyTrace
 import org.gradle.language.base.plugins.LifecycleBasePlugin
-import java.io.File
 import java.io.Serializable
 
 private fun Project.applyRecursively(block: Project.() -> Unit) {
@@ -24,40 +25,25 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
         public const val VALIDATE_LOCAL_MAVEN_REPO_TASK_NAME: String = "validateLocalMavenRepo"
     }
 
+    @Suppress("UnstableApiUsage")
     override fun apply(target: Settings) {
         val ext = target.extensions.create(
+            "artifactsValidation",
             ArtifactsValidatorPluginSettingsExtension::class.java,
-            "artifactsValidation", ArtifactsValidatorPluginSettingsExtensionImpl::class.java
-        ) as ArtifactsValidatorPluginSettingsExtensionImpl
+        )
 
         val rootDirPath = target.rootDir.toPath()
 
-        ext.defaultArtifactsDumpFile.set(target.rootDir.resolve("gradle/artifacts.txt"))
+        ext.usePerProjectDumps.convention(false)
+        ext.dumpFileNamePrefix.convention("artifacts")
+        ext.dumpFileRootDirectory.convention(target.layout.rootDirectory.dir("gradle"))
 
         target.gradle.beforeProject { project ->
             if (project.path != ":") return@beforeProject
 
-            val p2f = ext.projectPath2dumpFile
-            val defaultDumpFile = ext.defaultArtifactsDumpFile.get().asFile
-
-            if (!defaultDumpFile.toPath().normalize().startsWith(rootDirPath)) {
-                throw GradleException("Artifacts dump file must be located within the project directory: $defaultDumpFile")
-            }
-
-            p2f.forEach { (_, file) ->
-                val normalizedPath = file.toPath().normalize()
-                if (!normalizedPath.startsWith(rootDirPath)) {
-                    throw GradleException("Artifacts dump file must be located within the project directory: $file")
-                }
-            }
-
-            val checkTask =
-                project.tasks.register(CHECK_ARTIFACTS_TASK_NAME, PublicationArtifactsValidationTask::class.java) {
-                    // TODO: if all projects have an explicitly configure file in p2f map,
-                    //       there will be an error about non-existent defaultDumpFile (if it does not exist)
-                    it.artifactsDumpFiles.from(defaultDumpFile)
-                    it.artifactsDumpFiles.from(p2f.values)
-                }
+            val checkTask = project.tasks.register(CHECK_ARTIFACTS_TASK_NAME, PublicationArtifactsValidationTask::class.java)
+            val dumpTask = project.tasks.register(DUMP_ARTIFACTS_TASK_NAME, PublicationArtifactsDumpTask::class.java)
+            project.tasks.register(VALIDATE_LOCAL_MAVEN_REPO_TASK_NAME, ValidateLocalMavenRepositoryTask::class.java)
 
             project.tasks.configureEach {
                 if (it.name == LifecycleBasePlugin.CHECK_TASK_NAME) {
@@ -65,14 +51,16 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
                 }
             }
 
-            val dumpTask = project.tasks.register(DUMP_ARTIFACTS_TASK_NAME, PublicationArtifactsDumpTask::class.java) {
-                it.defaultArtifactsDumpFile.set(defaultDumpFile)
-                p2f.forEach { (project, file) ->
-                    it.artifactsDumpFiles.put(project, file)
+            val dumpFilePrefix = ext.dumpFileNamePrefix.get()
+            val usePerProjectDumpFile = ext.usePerProjectDumps.get()
+            if (!usePerProjectDumpFile) {
+                val defaultDumpFile = ext.dumpFileRootDirectory.file("$dumpFilePrefix.txt").get().asFile
+                if (!defaultDumpFile.toPath().normalize().startsWith(rootDirPath)) {
+                    throw GradleException("Artifacts dump file must be located within the project directory: $defaultDumpFile")
                 }
+                checkTask.configure { it.artifactsDumpFiles.from(defaultDumpFile) }
+                dumpTask.configure { it.defaultArtifactsDumpFile.set(defaultDumpFile) }
             }
-
-            project.tasks.register(VALIDATE_LOCAL_MAVEN_REPO_TASK_NAME, ValidateLocalMavenRepositoryTask::class.java)
 
             project.applyRecursively {
                 pluginManager.withPlugin("maven-publish") {
@@ -84,6 +72,11 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
                         checkTask.configure { it.addPublicationProvider(descriptor) }
                         dumpTask.configure { it.addPublicationProvider(descriptor) }
                     }
+                }
+                if (usePerProjectDumpFile) {
+                    val projectDumpFile = ext.dumpFileRootDirectory.file("$dumpFilePrefix-$name.txt").get().asFile
+                    checkTask.configure { it.artifactsDumpFiles.from(projectDumpFile) }
+                    dumpTask.configure { it.artifactsDumpFiles.put(path, projectDumpFile) }
                 }
             }
         }
@@ -124,18 +117,7 @@ public class PublicationDescriptor(
 }
 
 public interface ArtifactsValidatorPluginSettingsExtension {
-    public val defaultArtifactsDumpFile: RegularFileProperty
-
-    public fun dumpFileForProjects(file: File, project: ProjectDescriptor, vararg projects: ProjectDescriptor)
-}
-
-internal abstract class ArtifactsValidatorPluginSettingsExtensionImpl : ArtifactsValidatorPluginSettingsExtension {
-    internal val projectPath2dumpFile = mutableMapOf<String, File>()
-
-    override fun dumpFileForProjects(file: File, project: ProjectDescriptor, vararg projects: ProjectDescriptor) {
-        projectPath2dumpFile[project.path] = file
-        projects.forEach { project ->
-            projectPath2dumpFile[project.path] = file
-        }
-    }
+    public val dumpFileNamePrefix: Property<String>
+    public val dumpFileRootDirectory: DirectoryProperty
+    public val usePerProjectDumps: Property<Boolean>
 }
