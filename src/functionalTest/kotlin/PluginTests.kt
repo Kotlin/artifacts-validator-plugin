@@ -52,8 +52,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
             "publishTestPublicationToTestRepository",
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}",
-            "--artifacts-version=0.0.1"
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
         ) {
             checkTaskStatus(":publishTestPublicationToTestRepository", TaskOutcome.SUCCESS)
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
@@ -177,12 +176,50 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
             "publishTestPublicationToTestRepository",
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}",
-            "--artifacts-version=0.0.1"
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
         ) {
             checkTaskStatus(":publishTestPublicationToTestRepository", TaskOutcome.SUCCESS)
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
             outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
+        }
+    }
+
+    @Test
+    fun validateLocalMavenRepoWithMultipleArtifactLists() {
+        copySettingsKts()
+        copyBuildKts()
+        createFile("gradle/artifacts-core.txt", "org.example:artifact-core/.pom\n")
+        createFile("gradle/artifacts-ext.txt", "org.example:artifact-ext/.pom\n")
+        createFile("build/test-repo/org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom")
+        createFile("build/test-repo/org/example/artifact-ext/2025a-0.0.1/artifact-ext-2025a-0.0.1.pom")
+        useGradleVersion("8.5")
+
+        run(
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts-core.txt")}:0.0.1",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts-ext.txt")}:2025a-0.0.1"
+        ) {
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
+            outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
+        }
+    }
+
+    @Test
+    fun validateLocalMavenRepoRejectsArtifactListWithoutVersion() {
+        copySettingsKts()
+        copyBuildKts()
+        useGradleVersion("8.5")
+
+        runAndFail(
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}"
+        ) {
+            outputContains(
+                "artifacts-list value must use the format <file>:<version>, was: " +
+                    "\"${projectRoot.resolve("gradle/artifacts.txt")}\"."
+            )
         }
     }
 

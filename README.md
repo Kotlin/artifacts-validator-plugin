@@ -62,6 +62,7 @@ This command will use all the settings from `artifactValidation` extension, scan
 generate rules for all artifacts matching specified versions and dump it into the file.
 
 In addition to the `--dump` option, `artifactValidation` properties has their own command line arguments.
+When invoking `validateLocalMavenRepo` from CLI, pass each expected rules file together with its version as `--artifacts-list=<file>:<version>`.
 You can learn more about them by running `./gradlew -q help --task validateLocalMavenRepo`.
 
 ## Artifact rules

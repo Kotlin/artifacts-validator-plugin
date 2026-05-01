@@ -6,6 +6,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.*
 import org.gradle.api.tasks.*
 import org.gradle.api.tasks.Optional
@@ -69,20 +70,36 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
      * Lists of rules describing expected artifacts associated with
      * an expected version artifacts corresponding to these rules.
      */
-    @get:InputFile
-    @get:Option(
-        option = "artifacts-list",
-        description = "A file containing a list of artifacts to validate."
-    )
-    public abstract val artifactList: RegularFileProperty
-
     @get:Input
-    @get:Optional
-    @get:Option(
-        option = "artifacts-version",
-        description = "Version of artifacts to validate. If not specified, the version will not be verified."
+    public abstract val artifactLists: MapProperty<File, String>
+
+    /**
+     * Command line option parser for [artifactLists]. Overrides all values specified in [artifactLists].
+     */
+    @Option(
+        option = "artifacts-list",
+        description = "A path to a file listing artifacts to validate paired with their expected version, " +
+                "using the format <file>:<version>. Repeat this option to validate multiple artifact lists."
     )
-    public abstract val validateVersion: Property<String>
+    public fun artifactsListOption(values: List<String>) {
+        values.forEach { fileAndVersion ->
+            val delimiterIndex = fileAndVersion.lastIndexOf(':')
+            if (delimiterIndex <= 0 || delimiterIndex == fileAndVersion.lastIndex) {
+                throw GradleException(
+                    "artifacts-list value must use the format <file>:<version>, was: \"$fileAndVersion\"."
+                )
+            }
+            val file = File(fileAndVersion.substring(0, delimiterIndex))
+            val version = fileAndVersion.substring(delimiterIndex + 1)
+            cliArtifactLists[file] = version
+        }
+    }
+
+    private val cliArtifactLists: MutableMap<File, String> = mutableMapOf()
+
+    private fun finalArtifactsLists(): Map<File, String> = cliArtifactLists.ifEmpty {
+        artifactLists.getOrElse(emptyMap())
+    }
 
     /**
      * Verify that each artifact has a corresponding signature file (`.asc`-file).
@@ -149,25 +166,38 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
         return artifacts
     }
 
-    private fun loadRules(): List<ArtifactRule> {
-        val file = artifactList.get().asFile
-        if (!file.exists()) {
-            throw GradleException("Artifacts list file does not exist: $file")
-        }
-        debug("Loading artifact rules from $file")
-        return file.readLines().filter { it.isNotBlank() }.flatMap {
-            try {
-                ArtifactRule.parseRule(it)
-            } catch (e: IllegalArgumentException) {
-                throw GradleException("Error while parsing rules file $file: ${e.message}", e)
+    private fun loadRules(): Map<File, List<ArtifactRule>> {
+        val fileToRules = mutableMapOf<File, List<ArtifactRule>>()
+        var hasErrors = false
+
+        finalArtifactsLists().forEach { (file, _) ->
+            if (!file.exists()) {
+                error("Artifacts list file does not exist: $file")
+                hasErrors = true
+                return@forEach
             }
+            debug("Loading artifact rules from $file")
+            val rules = file.readLines().filter { it.isNotBlank() }.flatMap {
+                try {
+                    ArtifactRule.parseRule(it)
+                } catch (e: IllegalArgumentException) {
+                    throw GradleException("Error while parsing rules file $file: ${e.message}", e)
+                }
+            }
+            fileToRules[file] = rules
         }
+
+        if (hasErrors) {
+            throw GradleException("Failed to load rules file from files. See log for more details.")
+        }
+
+        return fileToRules
     }
 
-    private fun compareArtifacts(rules: List<ArtifactRule>, artifacts: List<AggregatedArtifactInfo>) {
-        val version = validateVersion.getOrElse(null)
-        val expectedArtifacts = rules.mapTo(TreeSet<String>()) {
-            it.toArtifactIdentifier(version)
+    private fun compareArtifacts(rules: Map<File, List<ArtifactRule>>, artifacts: List<AggregatedArtifactInfo>) {
+        val expectedArtifacts = rules.flatMapTo(TreeSet<String>()) { (file, fileRules) ->
+            val version = finalArtifactsLists().getValue(file)
+            fileRules.map { it.toArtifactIdentifier(version) }
         }
         val actualArtifacts = artifacts.flatMapTo(TreeSet<String>()) {
             it.artifacts.map { it.artifact.toArtifactIdentifier() }
