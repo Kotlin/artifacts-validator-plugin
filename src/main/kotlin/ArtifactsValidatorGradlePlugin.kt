@@ -10,6 +10,7 @@ import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import java.io.File
+import java.io.Serializable
 
 private fun Project.applyRecursively(block: Project.() -> Unit) {
     block()
@@ -74,21 +75,45 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
             project.tasks.register(VALIDATE_LOCAL_MAVEN_REPO_TASK_NAME, ValidateLocalMavenRepositoryTask::class.java)
 
             project.applyRecursively {
-                this.afterEvaluate {
-                    val ext = it.extensions.findByType(PublishingExtension::class.java)
-                    if (ext == null) {
-                        logger.info("Publication was not configured for the project: ${this.name}, skipping artifacts validation setup.")
-                        return@afterEvaluate
-                    }
-                    // TODO: can we really do that?
-                    ext.publications.configureEach { publication ->
-                        if (publication is MavenPublication) {
-                            checkTask.configure { it.addPublication(this, publication) }
-                            dumpTask.configure { it.addPublication(this, publication) }
+                pluginManager.withPlugin("maven-publish") {
+                    val publishing = extensions.getByType(PublishingExtension::class.java)
+                    publishing.publications.withType(MavenPublication::class.java).configureEach { publication ->
+                        val descriptor = providers.provider {
+                            PublicationDescriptor.from(this@applyRecursively.path, publication)
                         }
+                        checkTask.configure { it.addPublicationProvider(descriptor) }
+                        dumpTask.configure { it.addPublicationProvider(descriptor) }
                     }
                 }
             }
+        }
+    }
+}
+
+public class PublicationDescriptor(
+    public val projectPath: String,
+    public val groupId: String,
+    public val artifactId: String,
+    public val version: String,
+    public val artifacts: List<ArtifactDescriptor>
+) : Serializable {
+    public class ArtifactDescriptor(
+        public val classifier: String,
+        public val extension: String
+    ) : Serializable
+
+    internal companion object {
+        internal fun from(projectPath: String, mavenPublication: MavenPublication): PublicationDescriptor {
+            val artifacts = mavenPublication.artifacts.map {
+                ArtifactDescriptor(it.classifier ?: "", it.extension)
+            }
+            return PublicationDescriptor(
+                projectPath,
+                mavenPublication.groupId,
+                mavenPublication.artifactId,
+                mavenPublication.version,
+                artifacts
+            )
         }
     }
 }

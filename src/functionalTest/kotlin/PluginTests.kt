@@ -187,13 +187,25 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
         }
     }
 
+    @Test
+    fun checkArtifactsSeePublicationArtifactsAddedInAfterEvaluate() {
+        copySettingsKts()
+        copyBuildKts(publicationBlock(artifactId = "basic-test-project", withSources = true, addSourcesInAfterEvaluate = true))
+        createFile("gradle/artifacts.txt", "org.jetbrains.kotlinx:basic-test-project/.jar,sources.jar\n")
+
+        run("checkArtifacts") {
+            checkTaskStatus(":checkArtifacts", TaskOutcome.SUCCESS)
+        }
+    }
+
     private fun copyBuildFile(path: String, appendText: String? = null) {
         copyFile("$resourcesPath/build.gradle.kts", path, appendText)
     }
 
     private fun publicationBlock(
         artifactId: String,
-        withSources: Boolean = false
+        withSources: Boolean = false,
+        addSourcesInAfterEvaluate: Boolean = false
     ): String = """
         val localTestRepository = rootProject.layout.buildDirectory.dir("test-repo")
         val publishedJar = tasks.register<org.gradle.api.tasks.bundling.Jar>("publishedJar") {
@@ -216,10 +228,20 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
                 create<org.gradle.api.publish.maven.MavenPublication>("test") {
                     this.artifactId = "$artifactId"
                     artifact(publishedJar)
-                    ${if (withSources) """artifact(publishedSourcesJar)""" else ""}
+                    ${if (withSources && !addSourcesInAfterEvaluate) """artifact(publishedSourcesJar)""" else ""}
                 }
             }
         }
+        ${if (addSourcesInAfterEvaluate) """
+        afterEvaluate {
+            extensions.getByType<org.gradle.api.publish.PublishingExtension>()
+                .publications
+                .withType(org.gradle.api.publish.maven.MavenPublication::class.java)
+                .named("test") {
+                    artifact(publishedSourcesJar)
+                }
+        }
+        """.trimIndent() else ""}
     """.trimIndent()
 
     private fun publishedArtifactsRule(artifactId: String, withSources: Boolean = false): String {

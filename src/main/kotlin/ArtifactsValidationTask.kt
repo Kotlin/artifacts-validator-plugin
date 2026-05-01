@@ -3,21 +3,19 @@ package kotlinx.validation
 import kotlinx.validation.ArtifactsValidationSettingsPlugin.Companion.DUMP_ARTIFACTS_TASK_NAME
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
-import org.gradle.api.Project
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
-import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.*
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.options.Option
 import org.gradle.work.DisableCachingByDefault
 import java.io.File
-import java.io.Serializable
 import java.nio.file.Paths
 import java.util.*
 
@@ -211,34 +209,6 @@ public abstract class ValidateLocalMavenRepositoryTask : DefaultTask() {
     }
 }
 
-public class PublicationDescriptor(
-    public val projectPath: String,
-    public val groupId: String,
-    public val artifactId: String,
-    public val version: String,
-    public val artifacts: List<ArtifactDescriptor>
-) : Serializable {
-    public class ArtifactDescriptor(
-        public val classifier: String,
-        public val extension: String
-    ) : Serializable
-
-    public companion object {
-        public fun from(projectPath: String, mavenPublication: MavenPublication): PublicationDescriptor {
-            val artifacts = mavenPublication.artifacts.map {
-                ArtifactDescriptor(it.classifier ?: "", it.extension)
-            }
-            return PublicationDescriptor(
-                projectPath,
-                mavenPublication.groupId,
-                mavenPublication.artifactId,
-                mavenPublication.version,
-                artifacts
-            )
-        }
-    }
-}
-
 private fun PublicationDescriptor.toArtifactIdentifiers(): List<String> {
     return artifacts.map {
         val info = ArtifactInfo(
@@ -271,8 +241,8 @@ public abstract class PublicationArtifactsValidationTask : DefaultTask() {
     @get:Input
     public abstract val publications: ListProperty<PublicationDescriptor>
 
-    public fun addPublication(project: Project, publication: MavenPublication) {
-        publications.add(PublicationDescriptor.from(project.path, publication))
+    public fun addPublicationProvider(descriptor: Provider<PublicationDescriptor>) {
+        publications.add(descriptor)
     }
 
     @TaskAction
@@ -351,8 +321,8 @@ public abstract class PublicationArtifactsDumpTask : DefaultTask() {
     @get:OutputFiles
     public abstract val artifactsDumpFiles: MapProperty<String, File>
 
-    public fun addPublication(project: Project, publication: MavenPublication) {
-        publications.add(PublicationDescriptor.from(project.path, publication))
+    public fun addPublicationProvider(descriptor: Provider<PublicationDescriptor>) {
+        publications.add(descriptor)
     }
 
     @TaskAction
