@@ -6,11 +6,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.provider.ListProperty
-import org.gradle.api.provider.MapProperty
-import org.gradle.api.provider.Property
-import org.gradle.api.provider.Provider
-import org.gradle.api.provider.SetProperty
+import org.gradle.api.provider.*
 import org.gradle.api.tasks.*
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.options.Option
@@ -19,8 +15,43 @@ import java.io.File
 import java.nio.file.Paths
 import java.util.*
 
+public abstract class ArtifactsValidationTaskBase : DefaultTask() {
+    private val logMessagePrefix = "[Artifacts Validation] "
+    internal fun error(message: String) = logger.error("$logMessagePrefix$message")
+    internal fun warn(message: String) = logger.warn("$logMessagePrefix$message")
+    internal fun debug(message: String) = logger.debug("$logMessagePrefix$message")
+    internal fun lifecycle(message: String) = logger.lifecycle("$logMessagePrefix$message")
+
+    internal fun compareArtifactsImpl(expectedArtifacts: SortedSet<String>, actualArtifacts: SortedSet<String>) {
+        if (expectedArtifacts == actualArtifacts) {
+            lifecycle("Artifacts fully matched the list of expected artifacts.")
+            return
+        }
+
+        val missingArtifacts = expectedArtifacts.subtract(actualArtifacts)
+        if (missingArtifacts.isNotEmpty()) {
+            error(
+                "Following artifacts were expected, but were not found: "
+                        + missingArtifacts.joinToString(", ")
+            )
+        }
+        val extraArtifacts = actualArtifacts.subtract(expectedArtifacts)
+        if (extraArtifacts.isNotEmpty()) {
+            error(
+                "Following artifacts were not expected, but were found: "
+                        + extraArtifacts.joinToString(", ")
+            )
+        }
+
+        throw GradleException(
+            "List of found artifacts does not match list of expected artifacts. See log for more details. " +
+                    "To generate or update files describing artifacts, run the '$DUMP_ARTIFACTS_TASK_NAME' task."
+        )
+    }
+}
+
 @DisableCachingByDefault
-public abstract class ValidateLocalMavenRepositoryTask : DefaultTask() {
+public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTaskBase() {
     /**
      * A directory containing artifacts to validate.
      *
@@ -105,12 +136,6 @@ public abstract class ValidateLocalMavenRepositoryTask : DefaultTask() {
         }
     }
 
-    private val logMessagePrefix = "[Artifacts Validation] "
-    private fun error(message: String) = logger.error("$logMessagePrefix$message")
-    private fun warn(message: String) = logger.warn("$logMessagePrefix$message")
-    private fun debug(message: String) = logger.debug("$logMessagePrefix$message")
-    private fun lifecycle(message: String) = logger.lifecycle("$logMessagePrefix$message")
-
     private fun loadArtifacts(): List<AggregatedArtifactInfo> {
         val repositoryRoot = artifactsRepositoryDir.get().asFile.toPath()
         var hasErrors = false
@@ -148,29 +173,7 @@ public abstract class ValidateLocalMavenRepositoryTask : DefaultTask() {
             it.artifacts.map { it.artifact.toArtifactIdentifier() }
         }
 
-        if (expectedArtifacts == actualArtifacts) {
-            lifecycle("Artifacts fully matched the list of expected artifacts.")
-            return
-        }
-
-        val missingArtifacts = expectedArtifacts.subtract(actualArtifacts)
-        if (missingArtifacts.isNotEmpty()) {
-            error(
-                "Following artifacts were expected, but were not found: "
-                        + missingArtifacts.joinToString(", ")
-            )
-        }
-        val extraArtifacts = actualArtifacts.subtract(expectedArtifacts)
-        if (extraArtifacts.isNotEmpty()) {
-            error(
-                "Following artifacts were not expected, but were found: "
-                        + extraArtifacts.joinToString(", ")
-            )
-        }
-
-        throw GradleException(
-            "List of found artifacts does not match list of expected artifacts. See log for more details."
-        )
+        compareArtifactsImpl(expectedArtifacts, actualArtifacts)
     }
 
     @OptIn(ExperimentalStdlibApi::class)
@@ -234,7 +237,7 @@ private fun PublicationDescriptor.toRules(): String {
 }
 
 @DisableCachingByDefault
-public abstract class PublicationArtifactsValidationTask : DefaultTask() {
+public abstract class PublicationArtifactsValidationTask : ArtifactsValidationTaskBase() {
     @get:InputFiles
     public abstract val artifactsDumpFiles: ConfigurableFileCollection
 
@@ -265,47 +268,14 @@ public abstract class PublicationArtifactsValidationTask : DefaultTask() {
                     try {
                         ArtifactRule.parseRule(it)
                     } catch (e: IllegalArgumentException) {
-                        error("Error while parsing rules file $file: ${e.message}")
+                        throw GradleException("Error while parsing rules file $file: ${e.message}")
                     }
                 }
         }
 
-        compareArtifacts(rules, publications.get().flatMap { it.toArtifactIdentifiers() })
-    }
-
-    private fun compareArtifacts(rules: List<ArtifactRule>, artifacts: List<String>) {
-        val expectedArtifacts = rules.mapTo(TreeSet<String>()) { it.toArtifactIdentifier(null) }
-
-        val actualArtifacts = TreeSet<String>().also {
-            it.addAll(artifacts)
-        }
-
-        if (expectedArtifacts == actualArtifacts) {
-            project.logger.info("Artifacts fully matched the list of expected artifacts.")
-            return
-        }
-
-        val missingArtifacts = expectedArtifacts.subtract(actualArtifacts)
-        if (missingArtifacts.isNotEmpty()) {
-            error(
-                "Following artifacts were expected, but were not found: "
-                        + missingArtifacts.joinToString(", ")
-            )
-        }
-        val extraArtifacts = actualArtifacts.subtract(expectedArtifacts)
-        if (extraArtifacts.isNotEmpty()) {
-            error(
-                "Following artifacts were not expected, but were found: "
-                        + extraArtifacts.joinToString(", ")
-            )
-        }
-
-        error(
-            "To update the list of expected artifacts, ..."
-        )
-
-        throw GradleException(
-            "List of found artifacts does not match list of expected artifacts. See log for more details."
+        compareArtifactsImpl(
+            rules.mapTo(TreeSet()) { it.toArtifactIdentifier(null) },
+            publications.get().flatMapTo(TreeSet()) { it.toArtifactIdentifiers() }
         )
     }
 }
@@ -329,7 +299,7 @@ public abstract class PublicationArtifactsDumpTask : DefaultTask() {
     public fun dump() {
         val project2publication = publications.get().groupBy { it.projectPath }
 
-        val file2publications =  mutableMapOf<File, MutableList<PublicationDescriptor>>()
+        val file2publications = mutableMapOf<File, MutableList<PublicationDescriptor>>()
         val defaultFile = defaultArtifactsDumpFile.get().asFile
 
         for ((project, publications) in project2publication) {
