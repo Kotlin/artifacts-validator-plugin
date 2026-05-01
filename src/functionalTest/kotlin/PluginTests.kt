@@ -21,7 +21,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
     fun checkArtifacts() {
         copySettingsKts()
         copyBuildKts(publicationBlock(artifactId = "basic-test-project"))
-        createFile("gradle/artifacts.txt", "org.jetbrains.kotlinx:basic-test-project/.jar\n")
+        createFile("gradle/artifacts.txt", "org.jetbrains.kotlinx:basic-test-project/.jar,.pom\n")
 
         run("check") {
             checkTaskStatus(":checkArtifacts", TaskOutcome.SUCCESS)
@@ -74,7 +74,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
         }
 
         assertEquals(
-            "org.jetbrains.kotlinx:basic-test-project/.jar,sources.jar\n",
+            "org.jetbrains.kotlinx:basic-test-project/.jar,.pom,sources.jar\n",
             projectRoot.resolve("gradle/artifacts.txt").readText()
         )
     }
@@ -90,7 +90,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
             """.trimIndent()
         )
         copyBuildKts(publicationBlock(artifactId = "basic-test-project"))
-        createFile("expected/custom-artifacts.txt", "org.jetbrains.kotlinx:basic-test-project/.jar\n")
+        createFile("expected/custom-artifacts.txt", "org.jetbrains.kotlinx:basic-test-project/.jar,.pom\n")
 
         run("checkArtifacts") {
             checkTaskStatus(":checkArtifacts", TaskOutcome.SUCCESS)
@@ -126,11 +126,11 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
         }
 
         assertEquals(
-            "org.jetbrains.kotlinx:lib/.jar\n",
+            "org.jetbrains.kotlinx:lib/.jar,.pom\n",
             projectRoot.resolve("gradle/lib-artifacts.txt").readText()
         )
         assertEquals(
-            "org.jetbrains.kotlinx:ext/.jar\n",
+            "org.jetbrains.kotlinx:ext/.jar,.pom\n",
             projectRoot.resolve("gradle/ext-artifacts.txt").readText()
         )
     }
@@ -159,8 +159,8 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
             publicationBlock(artifactId = "ext")
         )
         createFile("gradle/artifacts.txt")
-        createFile("gradle/lib-artifacts.txt", "org.jetbrains.kotlinx:lib/.jar\n")
-        createFile("gradle/ext-artifacts.txt", "org.jetbrains.kotlinx:ext/.jar\n")
+        createFile("gradle/lib-artifacts.txt", "org.jetbrains.kotlinx:lib/.jar,.pom\n")
+        createFile("gradle/ext-artifacts.txt", "org.jetbrains.kotlinx:ext/.jar,.pom\n")
 
         run("checkArtifacts") {
             checkTaskStatus(":checkArtifacts", TaskOutcome.SUCCESS)
@@ -191,7 +191,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
     fun checkArtifactsSeePublicationArtifactsAddedInAfterEvaluate() {
         copySettingsKts()
         copyBuildKts(publicationBlock(artifactId = "basic-test-project", withSources = true, addSourcesInAfterEvaluate = true))
-        createFile("gradle/artifacts.txt", "org.jetbrains.kotlinx:basic-test-project/.jar,sources.jar\n")
+        createFile("gradle/artifacts.txt", "org.jetbrains.kotlinx:basic-test-project/.jar,.pom,sources.jar\n")
 
         run("checkArtifacts") {
             checkTaskStatus(":checkArtifacts", TaskOutcome.SUCCESS)

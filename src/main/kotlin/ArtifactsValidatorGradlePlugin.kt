@@ -103,10 +103,15 @@ public class PublicationDescriptor(
     ) : Serializable
 
     internal companion object {
+        // MavenPublication does not list pom file as an artifact,
+        // but we need it for several reasons:
+        // - it is still there in the repo, anyway
+        // - if artifact consists of a pom file only, we need to track it
+        private val POM_ARTIFACT = ArtifactDescriptor("", "pom")
         internal fun from(projectPath: String, mavenPublication: MavenPublication): PublicationDescriptor {
             val artifacts = mavenPublication.artifacts.map {
                 ArtifactDescriptor(it.classifier ?: "", it.extension)
-            }
+            } + POM_ARTIFACT
             return PublicationDescriptor(
                 projectPath,
                 mavenPublication.groupId,
