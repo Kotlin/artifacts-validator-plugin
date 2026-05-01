@@ -6,10 +6,8 @@ import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.initialization.Settings
 import org.gradle.api.provider.Property
-import org.gradle.api.provider.SetProperty
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.configurationcache.problems.PropertyTrace
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import java.io.Serializable
 
