@@ -9,7 +9,7 @@ class ChecksumOptionsHelperMessageTest {
         assertEquals(
             setOf(ChecksumType.MD5, ChecksumType.SHA1, ChecksumType.SHA256, ChecksumType.SHA512),
             ChecksumType.values().toSet(),
-            "Available digest types changed, don't forget to update a help message for ArtifactsValidationTask.validateChecksums"
+            "Available digest types changed, don't forget to update a help message for ValidateLocalMavenRepositoryTask.validateChecksums"
         )
     }
 }

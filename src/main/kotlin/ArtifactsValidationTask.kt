@@ -22,7 +22,7 @@ import java.nio.file.Paths
 import java.util.*
 
 @DisableCachingByDefault
-public abstract class ArtifactsValidationTask : DefaultTask() {
+public abstract class ValidateLocalMavenRepositoryTask : DefaultTask() {
     /**
      * A directory containing artifacts to validate.
      *

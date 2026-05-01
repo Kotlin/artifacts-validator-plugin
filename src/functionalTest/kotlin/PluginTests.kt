@@ -13,7 +13,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
         run("tasks", "--all") {
             outputContains("checkArtifacts")
             outputContains("dumpArtifacts")
-            outputContains("validateArtifacts")
+            outputContains("validateLocalMavenRepo")
         }
     }
 
@@ -42,7 +42,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
     }
 
     @Test
-    fun validateArtifactsReportsUnexpectedArtifacts() {
+    fun validateLocalMavenRepoReportsUnexpectedArtifacts() {
         copySettingsKts()
         copyBuildKts(publicationBlock(artifactId = "basic-test-project", withSources = true))
         createFile("gradle/artifacts.txt", publishedArtifactsRule("basic-test-project"))
@@ -50,13 +50,13 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
 
         runAndFail(
             "publishTestPublicationToTestRepository",
-            "validateArtifacts",
+            "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
             "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}",
             "--artifacts-version=0.0.1"
         ) {
             checkTaskStatus(":publishTestPublicationToTestRepository", TaskOutcome.SUCCESS)
-            checkTaskStatus(":validateArtifacts", TaskOutcome.FAILED)
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
             outputContains(
                 "Following artifacts were not expected, but were found: " +
                     "org.jetbrains.kotlinx:basic-test-project-0.0.1-sources.jar"
@@ -168,7 +168,7 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
     }
 
     @Test
-    fun validateArtifactsForPublishedRepo() {
+    fun validateLocalMavenRepoForPublishedRepo() {
         copySettingsKts()
         copyBuildKts(publicationBlock(artifactId = "basic-test-project", withSources = true))
         createFile("gradle/artifacts.txt", publishedArtifactsRule("basic-test-project", withSources = true))
@@ -176,13 +176,13 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
 
         run(
             "publishTestPublicationToTestRepository",
-            "validateArtifacts",
+            "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
             "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}",
             "--artifacts-version=0.0.1"
         ) {
             checkTaskStatus(":publishTestPublicationToTestRepository", TaskOutcome.SUCCESS)
-            checkTaskStatus(":validateArtifacts", TaskOutcome.SUCCESS)
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
             outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
         }
     }

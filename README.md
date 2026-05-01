@@ -56,13 +56,13 @@ artifactsValidation {
 
 For projects with complex publications, several artifacts lists with distinct versions could be configured using subsequence `artifactList` calls.
 
-An [artifact rules](#artifact-rules) file could be either created manually, or generated from local repository contents by running `./gradlew validateArtifacts --dump`.
+An [artifact rules](#artifact-rules) file could be either created manually, or generated from local repository contents by running `./gradlew validateLocalMavenRepo --dump`.
 
 This command will use all the settings from `artifactValidation` extension, scan the configured Maven repository,
 generate rules for all artifacts matching specified versions and dump it into the file.
 
 In addition to the `--dump` option, `artifactValidation` properties has their own command line arguments.
-You can learn more about them by running `./gradlew -q help --task validateArtifacts`.
+You can learn more about them by running `./gradlew -q help --task validateLocalMavenRepo`.
 
 ## Artifact rules
 
@@ -93,7 +93,7 @@ org.jetbrains.kotlinx:kotlinx-io-core/javadoc.jar
 org.jetbrains.kotlinx:kotlinx-io-core/kotlin-tooling-metadata.json
 ```
 
-Writing a rule file from scratch could be tedious, so instead it could be generated automatically by running `./gradlew validateArtifacts --dump`.
+Writing a rule file from scratch could be tedious, so instead it could be generated automatically by running `./gradlew validateLocalMavenRepo --dump`.
 
 ## Validation procedure
 

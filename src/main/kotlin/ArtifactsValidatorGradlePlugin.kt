@@ -20,6 +20,7 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
     public companion object {
         public const val CHECK_ARTIFACTS_TASK_NAME: String = "checkArtifacts"
         public const val DUMP_ARTIFACTS_TASK_NAME: String = "dumpArtifacts"
+        public const val VALIDATE_LOCAL_MAVEN_REPO_TASK_NAME: String = "validateLocalMavenRepo"
     }
 
     override fun apply(target: Settings) {
@@ -70,7 +71,7 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
                 }
             }
 
-            project.tasks.register("validateArtifacts", ArtifactsValidationTask::class.java)
+            project.tasks.register(VALIDATE_LOCAL_MAVEN_REPO_TASK_NAME, ValidateLocalMavenRepositoryTask::class.java)
 
             project.applyRecursively {
                 this.afterEvaluate {
