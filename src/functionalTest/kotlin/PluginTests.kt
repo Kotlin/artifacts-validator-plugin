@@ -64,6 +64,28 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
     }
 
     @Test
+    fun validateLocalMavenRepoReportsMissingExpectedArtifacts() {
+        copySettingsKts()
+        copyBuildKts(publicationBlock(artifactId = "basic-test-project"))
+        createFile("gradle/artifacts.txt", publishedArtifactsRule("basic-test-project", withSources = true))
+        useGradleVersion("8.5")
+
+        runAndFail(
+            "publishTestPublicationToTestRepository",
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+        ) {
+            checkTaskStatus(":publishTestPublicationToTestRepository", TaskOutcome.SUCCESS)
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
+            outputContains(
+                "Following artifacts were expected, but were not found: " +
+                    "org.jetbrains.kotlinx:basic-test-project-0.0.1-sources.jar"
+            )
+        }
+    }
+
+    @Test
     fun dumpArtifacts() {
         copySettingsKts()
         copyBuildKts(publicationBlock(artifactId = "basic-test-project", withSources = true))
@@ -227,6 +249,116 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
     }
 
     @Test
+    fun validateLocalMavenRepoValidatesChecksumsAndSignatures() {
+        copySettingsKts()
+        copyBuildKts()
+        createFile("gradle/artifacts.txt", "org.example:artifact-core/.pom\n")
+        createRepositoryArtifact(
+            "org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom",
+            "org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom.asc",
+            "org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom.md5",
+            "org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom.sha256"
+        )
+        useGradleVersion("8.5")
+
+        run(
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1",
+            "--require-signatures",
+            "--require-checksums=md5",
+            "--require-checksums=Sha256"
+        ) {
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
+            outputContains("[Artifacts Validation] All artifacts are signed.")
+            outputContains("[Artifacts Validation] All artifacts have required checksums.")
+        }
+    }
+
+    @Test
+    fun validateLocalMavenRepoReportsMissingChecksumsAndSignatures() {
+        copySettingsKts()
+        copyBuildKts()
+        createFile("gradle/artifacts.txt", "org.example:artifact-core/.pom\n")
+        createRepositoryArtifact("org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom.sha1")
+        createRepositoryArtifact("org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom")
+        useGradleVersion("8.5")
+
+        runAndFail(
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1",
+            "--require-signatures",
+            "--require-checksums=md5",
+            "--require-checksums=sha1"
+        ) {
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
+            outputContains("artifact-core-0.0.1.pom is not signed.")
+            outputContains("artifact-core-0.0.1.pom is missing following checksums:")
+            outputContains("MD5")
+            outputContains("Some artifacts were not signed or missing checksum files. See log for more details.")
+        }
+    }
+
+    @Test
+    fun validateLocalMavenRepoRejectsInvalidChecksumType() {
+        copySettingsKts()
+        copyBuildKts()
+        createFile("gradle/artifacts.txt", "org.example:artifact-core/.pom\n")
+        createDir("build/test-repo")
+        useGradleVersion("8.5")
+
+        runAndFail(
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1",
+            "--require-checksums=sha999"
+        ) {
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
+            outputContains("Invalid checksum type: sha999. Use one of MD5, SHA1, SHA256, SHA512")
+        }
+    }
+
+    @Test
+    fun validateLocalMavenRepoFailsForOrphanedChecksumFile() {
+        copySettingsKts()
+        copyBuildKts()
+        createFile("gradle/artifacts.txt", "org.example:artifact-core/.pom\n")
+        createRepositoryArtifact("org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom.sha1")
+        useGradleVersion("8.5")
+
+        runAndFail(
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+        ) {
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
+            outputContains("There are checksum and/or signature files corresponding to an artifact, but the main artifact file does not exist:")
+            outputContains("Errors were detected while loading artifacts info. See log for details")
+        }
+    }
+
+    @Test
+    fun validateLocalMavenRepoRejectsMultipleArtifactSources() {
+        copySettingsKts()
+        copyBuildKts()
+        createFile("gradle/artifacts.txt", "org.example:artifact-core/.pom\n")
+        createDir("build/test-repo")
+        createZip("build/test-repo.zip", "org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom")
+        useGradleVersion("8.5")
+
+        runAndFail(
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-zip=${projectRoot.resolve("build/test-repo.zip")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+        ) {
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
+            outputContains("Only one artifact source can be configured. Use either --artifacts-dir or --artifacts-zip.")
+        }
+    }
+
+    @Test
     fun validateLocalMavenRepoRejectsArtifactListWithoutVersion() {
         copySettingsKts()
         copyBuildKts()
@@ -245,6 +377,44 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
     }
 
     @Test
+    fun validateLocalMavenRepoRejectsInvalidRulesFile() {
+        copySettingsKts()
+        copyBuildKts()
+        createFile("gradle/artifacts.txt", "not a valid rule\n")
+        createRepositoryArtifact("org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom")
+        useGradleVersion("8.5")
+
+        runAndFail(
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+        ) {
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
+            outputContains("Error while parsing rules file")
+            outputContains("Rule should contain exactly one '/'")
+        }
+    }
+
+    @Test
+    fun validateLocalMavenRepoRejectsMissingRulesFile() {
+        copySettingsKts()
+        copyBuildKts()
+        createRepositoryArtifact("org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom")
+        useGradleVersion("8.5")
+
+        runAndFail(
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/missing-artifacts.txt")}:0.0.1"
+        ) {
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
+            outputContains("Artifacts list file does not exist:")
+            outputContains("missing-artifacts.txt")
+            outputContains("Failed to load rules file from files. See log for more details.")
+        }
+    }
+
+    @Test
     fun checkArtifactsSeePublicationArtifactsAddedInAfterEvaluate() {
         copySettingsKts()
         copyBuildKts(publicationBlock(artifactId = "basic-test-project", withSources = true, addSourcesInAfterEvaluate = true))
@@ -257,6 +427,10 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
 
     private fun copyBuildFile(path: String, appendText: String? = null) {
         copyFile("$resourcesPath/build.gradle.kts", path, appendText)
+    }
+
+    private fun createRepositoryArtifact(vararg paths: String) {
+        paths.forEach { createFile("build/test-repo/$it") }
     }
 
     private fun publicationBlock(
