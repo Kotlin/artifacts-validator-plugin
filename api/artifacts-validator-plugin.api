@@ -1,30 +1,66 @@
-public abstract class kotlinx/validation/ArtifactsValidationTask : org/gradle/api/DefaultTask {
+public final class kotlinx/validation/ArtifactsValidationSettingsPlugin : org/gradle/api/Plugin {
+	public static final field CHECK_ARTIFACTS_TASK_NAME Ljava/lang/String;
+	public static final field Companion Lkotlinx/validation/ArtifactsValidationSettingsPlugin$Companion;
+	public static final field DUMP_ARTIFACTS_TASK_NAME Ljava/lang/String;
+	public static final field VALIDATE_LOCAL_MAVEN_REPO_TASK_NAME Ljava/lang/String;
 	public fun <init> ()V
-	public final fun artifactsListOption (Ljava/util/List;)V
-	public abstract fun getArtifactLists ()Lorg/gradle/api/provider/MapProperty;
-	public abstract fun getArtifactsRepositoryDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getDump ()Lorg/gradle/api/provider/Property;
-	public abstract fun getRequireChecksums ()Lorg/gradle/api/provider/SetProperty;
-	public abstract fun getRequireSignatures ()Lorg/gradle/api/provider/Property;
+	public synthetic fun apply (Ljava/lang/Object;)V
+	public fun apply (Lorg/gradle/api/initialization/Settings;)V
+}
+
+public final class kotlinx/validation/ArtifactsValidationSettingsPlugin$Companion {
+}
+
+public abstract class kotlinx/validation/ArtifactsValidationTaskBase : org/gradle/api/DefaultTask {
+	public fun <init> ()V
+}
+
+public abstract interface class kotlinx/validation/ArtifactsValidatorPluginSettingsExtension {
+	public abstract fun getDumpFileNamePrefix ()Lorg/gradle/api/provider/Property;
+	public abstract fun getDumpFileRootDirectory ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getUsePerProjectDumps ()Lorg/gradle/api/provider/Property;
+}
+
+public abstract class kotlinx/validation/PublicationArtifactsDumpTask : org/gradle/api/DefaultTask {
+	public fun <init> ()V
+	public final fun addPublicationProvider (Lorg/gradle/api/provider/Provider;)V
+	public final fun dump ()V
+	public abstract fun getPerProjectRuleFiles ()Lorg/gradle/api/provider/MapProperty;
+	public abstract fun getPublications ()Lorg/gradle/api/provider/ListProperty;
+	public abstract fun getSharedRulesFile ()Lorg/gradle/api/file/RegularFileProperty;
+}
+
+public abstract class kotlinx/validation/PublicationArtifactsValidationTask : kotlinx/validation/ArtifactsValidationTaskBase {
+	public fun <init> ()V
+	public final fun addPublicationProvider (Lorg/gradle/api/provider/Provider;)V
+	public abstract fun getArtifactRuleFiles ()Lorg/gradle/api/file/ConfigurableFileCollection;
+	public abstract fun getPublications ()Lorg/gradle/api/provider/ListProperty;
 	public final fun validate ()V
 }
 
-public final class kotlinx/validation/ArtifactsValidatorPlugin : org/gradle/api/Plugin {
-	public fun <init> ()V
-	public synthetic fun apply (Ljava/lang/Object;)V
-	public fun apply (Lorg/gradle/api/Project;)V
+public final class kotlinx/validation/PublicationDescriptor : java/io/Serializable {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)V
+	public final fun getArtifactId ()Ljava/lang/String;
+	public final fun getArtifacts ()Ljava/util/List;
+	public final fun getGroupId ()Ljava/lang/String;
+	public final fun getProjectPath ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
 }
 
-public abstract class kotlinx/validation/ArtifactsValidatorPluginExtension {
+public final class kotlinx/validation/PublicationDescriptor$ArtifactDescriptor : java/io/Serializable {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun getClassifier ()Ljava/lang/String;
+	public final fun getExtension ()Ljava/lang/String;
+}
+
+public abstract class kotlinx/validation/ValidateLocalMavenRepositoryTask : kotlinx/validation/ArtifactsValidationTaskBase {
 	public fun <init> ()V
-	public abstract fun artifactsList (Ljava/io/File;)V
-	public final fun artifactsList (Ljava/io/File;Ljava/lang/String;)V
-	public final fun artifactsList (Ljava/io/File;Lorg/gradle/api/provider/Provider;)V
-	public abstract fun getArtifactLists ()Lorg/gradle/api/provider/MapProperty;
-	public abstract fun getArtifactsRepository ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
+	public final fun artifactsListOption (Ljava/util/List;)V
+	public abstract fun getArtifactRuleFiles ()Lorg/gradle/api/provider/MapProperty;
+	public abstract fun getArtifactsRepositoryDir ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getArtifactsRepositoryZip ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getRequireChecksums ()Lorg/gradle/api/provider/SetProperty;
 	public abstract fun getRequireSignatures ()Lorg/gradle/api/provider/Property;
-	public abstract fun getTask ()Lorg/gradle/api/tasks/TaskProvider;
+	public final fun validate ()V
 }
 
