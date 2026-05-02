@@ -249,6 +249,89 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
     }
 
     @Test
+    fun validateLocalMavenRepoUsesConfiguredRulesFileWhenCliOptionIsMissing() {
+        copySettingsKts()
+        copyBuildKts(
+            """
+
+            tasks.named<kotlinx.validation.ValidateLocalMavenRepositoryTask>("validateLocalMavenRepo") {
+                artifactRuleFiles.put(file("gradle/artifacts.txt"), "0.0.1")
+            }
+            """.trimIndent()
+        )
+        createFile("gradle/artifacts.txt", "org.example:artifact-core/.pom\n")
+        createRepositoryArtifact("org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom")
+        useGradleVersion("8.5")
+
+        run(
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}"
+        ) {
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
+            outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
+        }
+    }
+
+    @Test
+    fun validateLocalMavenRepoWarnsForEmptyZipRepository() {
+        copySettingsKts()
+        copyBuildKts()
+        createFile("gradle/artifacts.txt", "")
+        createZip("build/test-repo.zip")
+        useGradleVersion("8.5")
+
+        run(
+            "validateLocalMavenRepo",
+            "--artifacts-zip=${projectRoot.resolve("build/test-repo.zip")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+        ) {
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
+            outputContains("[Artifacts Validation] No artifacts were found in")
+            outputContains("build/test-repo.zip")
+            outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
+        }
+    }
+
+    @Test
+    fun validateLocalMavenRepoRejectsMissingArtifactSource() {
+        copySettingsKts()
+        copyBuildKts()
+        createFile("gradle/artifacts.txt", "org.example:artifact-core/.pom\n")
+        useGradleVersion("8.5")
+
+        runAndFail(
+            "validateLocalMavenRepo",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+        ) {
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
+            outputContains("Artifact source is not configured. Use either --artifacts-dir or --artifacts-zip.")
+        }
+    }
+
+    @Test
+    fun validateLocalMavenRepoReportsZipScanErrors() {
+        copySettingsKts()
+        copyBuildKts()
+        createFile("gradle/artifacts.txt", "")
+        createZip(
+            "build/test-repo.zip",
+            "broken/path",
+        )
+        useGradleVersion("8.5")
+
+        runAndFail(
+            "validateLocalMavenRepo",
+            "--artifacts-zip=${projectRoot.resolve("build/test-repo.zip")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+        ) {
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
+            outputContains("Error detecting while reading file")
+            outputContains("broken/path")
+            outputContains("Errors were detected while loading artifacts info. See log for details")
+        }
+    }
+
+    @Test
     fun validateLocalMavenRepoValidatesChecksumsAndSignatures() {
         copySettingsKts()
         copyBuildKts()
@@ -301,6 +384,26 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
     }
 
     @Test
+    fun validateLocalMavenRepoReportsMissingSignatureOnly() {
+        copySettingsKts()
+        copyBuildKts()
+        createFile("gradle/artifacts.txt", "org.example:artifact-core/.pom\n")
+        createRepositoryArtifact("org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom")
+        useGradleVersion("8.5")
+
+        runAndFail(
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1",
+            "--require-signatures"
+        ) {
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
+            outputContains("artifact-core-0.0.1.pom is not signed.")
+            outputContains("Some artifacts were not signed or missing checksum files. See log for more details.")
+        }
+    }
+
+    @Test
     fun validateLocalMavenRepoRejectsInvalidChecksumType() {
         copySettingsKts()
         copyBuildKts()
@@ -316,6 +419,21 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
             outputContains("Invalid checksum type: sha999. Use one of MD5, SHA1, SHA256, SHA512")
+        }
+    }
+
+    @Test
+    fun validateLocalMavenRepoRejectsArtifactListWithEmptyPath() {
+        copySettingsKts()
+        copyBuildKts()
+        useGradleVersion("8.5")
+
+        runAndFail(
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-list=:0.0.1"
+        ) {
+            outputContains("artifacts-list value must use the format <file>:<version>, was: \":0.0.1\".")
         }
     }
 
@@ -411,6 +529,51 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
             outputContains("Artifacts list file does not exist:")
             outputContains("missing-artifacts.txt")
             outputContains("Failed to load rules file from files. See log for more details.")
+        }
+    }
+
+    @Test
+    fun dumpArtifactsRejectsConflictingOutputConfiguration() {
+        copySettingsKts()
+        copyBuildKts(
+            publicationBlock(artifactId = "basic-test-project") +
+                """
+
+                tasks.named<kotlinx.validation.PublicationArtifactsDumpTask>("dumpArtifacts") {
+                    perProjectRuleFiles.put(":", rootProject.file("gradle/extra-artifacts.txt"))
+                }
+                """.trimIndent()
+        )
+
+        runAndFail("dumpArtifacts") {
+            checkTaskStatus(":dumpArtifacts", TaskOutcome.FAILED)
+            outputContains("Either sharedRulesFile, or perProjectRuleFiles should configured, but not both")
+        }
+    }
+
+    @Test
+    fun dumpArtifactsRejectsMissingPerProjectOutputConfiguration() {
+        copySettingsKts(
+            """
+
+            extensions.configure<kotlinx.validation.ArtifactsValidatorPluginSettingsExtension>("artifactsValidation") {
+                usePerProjectDumps.set(true)
+            }
+            """.trimIndent()
+        )
+        copyBuildKts(
+            publicationBlock(artifactId = "basic-test-project") +
+                """
+
+                tasks.named<kotlinx.validation.PublicationArtifactsDumpTask>("dumpArtifacts") {
+                    perProjectRuleFiles.set(emptyMap())
+                }
+                """.trimIndent()
+        )
+
+        runAndFail("dumpArtifacts") {
+            checkTaskStatus(":dumpArtifacts", TaskOutcome.FAILED)
+            outputContains("Dump was not configured for project :")
         }
     }
 

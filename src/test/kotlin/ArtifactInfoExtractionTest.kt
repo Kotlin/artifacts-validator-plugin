@@ -233,4 +233,18 @@ public class ArtifactInfoExtractionTest {
             )
         }
     }
+
+    @Test
+    fun rejectAbsolutePath() {
+        val absolutePath = Path("/tmp/artifact-validator-plugin-0.0.1.pom")
+
+        assertFailsWith<IllegalArgumentException> {
+            absolutePath.extractArtifactInfo()
+        }.also {
+            assertEquals(
+                "Only relative path are allowed, but the function was invoked an absolute path $absolutePath",
+                it.message
+            )
+        }
+    }
 }
