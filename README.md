@@ -132,13 +132,21 @@ gradle/artifacts-ext.txt
 
 ## Using `validateLocalMavenRepo`
 
-`validateLocalMavenRepo` scans a Maven repository directory and compares its contents to one or more rule files.
+`validateLocalMavenRepo` scans a Maven repository directory or ZIP archive and compares its contents to one or more rule files.
 
 Basic example:
 
 ```bash
 ./gradlew validateLocalMavenRepo \
   --artifacts-dir=build/test-repo \
+  --artifacts-list=gradle/artifacts.txt:0.0.1
+```
+
+ZIP input works as well:
+
+```bash
+./gradlew validateLocalMavenRepo \
+  --artifacts-zip=build/test-repo.zip \
   --artifacts-list=gradle/artifacts.txt:0.0.1
 ```
 
@@ -155,6 +163,7 @@ Additional options:
 
 - `--require-signatures`: require an `.asc` file for every artifact
 - `--require-checksums=MD5,SHA1,SHA256,SHA512`: require checksum files for the listed algorithms
+- exactly one of `--artifacts-dir` or `--artifacts-zip` must be supplied
 
 You can inspect the full CLI help with:
 

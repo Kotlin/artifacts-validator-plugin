@@ -13,7 +13,9 @@ import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.options.Option
 import org.gradle.work.DisableCachingByDefault
 import java.io.File
+import java.nio.file.FileSystems
 import java.nio.file.Paths
+import java.net.URI
 import java.util.*
 
 public abstract class ArtifactsValidationTaskBase : DefaultTask() {
@@ -66,6 +68,7 @@ public abstract class ArtifactsValidationTaskBase : DefaultTask() {
 
 /**
  * Checks that all artifacts from a Maven 2 repository pointed by [artifactsRepositoryDir]
+ * or [artifactsRepositoryZip]
  * matches expected artifacts described using rules from [artifactRuleFiles], that there are no unexpected
  * artifacts and that there are no missing artifacts, and all artifacts have an appropriate version. When configured
  * using [requireSignatures] and [requireChecksums], the task also check signature and checksum files
@@ -79,12 +82,27 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
      * The directory is expected to have a [Maven repository layout](https://maven.apache.org/repository/layout.html).
      */
     @get:InputDirectory
+    @get:Optional
     @get:Option(
         option = "artifacts-dir",
         description = "Path to a directory containing artifacts to be validated. " +
                 "It is implied that a directory has Maven 2 layout."
     )
     public abstract val artifactsRepositoryDir: DirectoryProperty
+
+    /**
+     * A ZIP archive containing artifacts to validate.
+     *
+     * The archive is expected to have a [Maven repository layout](https://maven.apache.org/repository/layout.html).
+     */
+    @get:InputFile
+    @get:Optional
+    @get:Option(
+        option = "artifacts-zip",
+        description = "Path to a ZIP archive containing artifacts to be validated. " +
+                "It is implied that archive entries have Maven 2 layout."
+    )
+    public abstract val artifactsRepositoryZip: RegularFileProperty
 
     /**
      * Lists of rules describing expected artifacts associated with
@@ -174,14 +192,47 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
     }
 
     private fun loadArtifacts(): List<AggregatedArtifactInfo> {
-        val repositoryRoot = artifactsRepositoryDir.get().asFile.toPath()
         var hasErrors = false
-        debug("Loading artifacts from $repositoryRoot")
-        val artifacts = repositoryRoot.scanRepository(SnapshotResolutionStrategy.LATEST_FILE) { path, exception ->
-            error("Error detecting while reading file $path: ${exception.message}")
-            hasErrors = true
+        val artifacts = when {
+            artifactsRepositoryDir.isPresent && artifactsRepositoryZip.isPresent -> {
+                throw GradleException(
+                    "Only one artifact source can be configured. Use either --artifacts-dir or --artifacts-zip."
+                )
+            }
+
+            artifactsRepositoryDir.isPresent -> {
+                val repositoryRoot = artifactsRepositoryDir.get().asFile.toPath()
+                debug("Loading artifacts from directory $repositoryRoot")
+                repositoryRoot.scanRepository(SnapshotResolutionStrategy.LATEST_FILE) { path, exception ->
+                    error("Error detecting while reading file $path: ${exception.message}")
+                    hasErrors = true
+                }
+            }
+
+            artifactsRepositoryZip.isPresent -> {
+                val repositoryZip = artifactsRepositoryZip.get().asFile.toPath()
+                debug("Loading artifacts from ZIP archive $repositoryZip")
+                val zipUri = URI.create("jar:${repositoryZip.toUri()}")
+                FileSystems.newFileSystem(zipUri, mapOf<String, String>()).use { zipFs ->
+                    zipFs.getPath("/").scanRepository(SnapshotResolutionStrategy.LATEST_FILE) { path, exception ->
+                        error("Error detecting while reading file $path: ${exception.message}")
+                        hasErrors = true
+                    }
+                }
+            }
+
+            else -> {
+                throw GradleException("Artifact source is not configured. Use either --artifacts-dir or --artifacts-zip.")
+            }
         }
-        if (artifacts.isEmpty()) warn("No artifacts were found in $repositoryRoot")
+        if (artifacts.isEmpty()) {
+            val source = when {
+                artifactsRepositoryDir.isPresent -> artifactsRepositoryDir.get().asFile
+                artifactsRepositoryZip.isPresent -> artifactsRepositoryZip.get().asFile
+                else -> null
+            }
+            warn("No artifacts were found in $source")
+        }
         if (hasErrors) throw GradleException("Errors were detected while loading artifacts info. See log for details")
         return artifacts
     }

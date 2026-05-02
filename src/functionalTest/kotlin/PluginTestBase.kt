@@ -5,6 +5,8 @@ import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 
@@ -50,6 +52,17 @@ abstract class PluginTestBase(val resourcesPath: String) {
 
     fun createDir(path: String) {
         projectRoot.resolve(path).mkdirs()
+    }
+
+    fun createZip(path: String, vararg entries: String) {
+        val zipFile = projectRoot.resolve(path)
+        zipFile.parentFile.mkdirs()
+        ZipOutputStream(zipFile.outputStream().buffered()).use { zip ->
+            entries.forEach { entry ->
+                zip.putNextEntry(ZipEntry(entry))
+                zip.closeEntry()
+            }
+        }
     }
 
     private fun prepareRunner(vararg commands: String): GradleRunner =

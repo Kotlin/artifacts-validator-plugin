@@ -206,6 +206,27 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
     }
 
     @Test
+    fun validateLocalMavenRepoForZipRepository() {
+        copySettingsKts()
+        copyBuildKts()
+        createFile("gradle/artifacts.txt", "org.example:artifact-core/.pom\n")
+        createZip(
+            "build/test-repo.zip",
+            "org/example/artifact-core/0.0.1/artifact-core-0.0.1.pom",
+        )
+        useGradleVersion("8.5")
+
+        run(
+            "validateLocalMavenRepo",
+            "--artifacts-zip=${projectRoot.resolve("build/test-repo.zip")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+        ) {
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
+            outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
+        }
+    }
+
+    @Test
     fun validateLocalMavenRepoRejectsArtifactListWithoutVersion() {
         copySettingsKts()
         copyBuildKts()

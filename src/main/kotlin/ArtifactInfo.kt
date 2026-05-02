@@ -54,7 +54,7 @@ internal fun Path.scanRepository(
     visitFileTree(
         fileVisitor {
             onPreVisitDirectory { directory, _ ->
-                when (directory.fileName.toString()) {
+                when (directory.fileName?.toString()) {
                     ".index" -> FileVisitResult.SKIP_SUBTREE
                     ".meta" -> FileVisitResult.SKIP_SUBTREE
                     else -> FileVisitResult.CONTINUE

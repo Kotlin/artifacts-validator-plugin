@@ -2,7 +2,11 @@ package kotlinx.validation
 
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import java.net.URI
+import java.nio.file.FileSystems
 import java.nio.file.Path
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import kotlin.io.path.relativeTo
 import kotlin.test.*
 
@@ -16,6 +20,18 @@ class RepositoryScanningTest {
             artifactFile.parentFile.mkdirs()
             artifactFile.createNewFile()
         }
+    }
+
+    private fun buildRepositoryZip(path: String, vararg files: String): File {
+        val zipFile = File(repositoryRoot, path)
+        zipFile.parentFile.mkdirs()
+        ZipOutputStream(zipFile.outputStream().buffered()).use { zip ->
+            files.forEach { file ->
+                zip.putNextEntry(ZipEntry(file))
+                zip.closeEntry()
+            }
+        }
+        return zipFile
     }
 
     private fun AugmentedArtifactInfo.assertSignedAndHasChecksums(vararg checksum: ChecksumType) {
@@ -132,6 +148,39 @@ class RepositoryScanningTest {
         assertTrue(repositoryRoot.toPath().scanRepository { path, exception ->
             fail("No errors were expected, but got $exception for $path")
         }.isEmpty())
+    }
+
+    @Test
+    fun scanZipRepository() {
+        val repositoryZip = buildRepositoryZip(
+            "repo.zip",
+            "org/jetbrains/kotlinx/kotlinx-io-core/0.8.0/kotlinx-io-core-0.8.0.pom",
+            "org/jetbrains/kotlinx/kotlinx-io-core/0.8.0/kotlinx-io-core-0.8.0.pom.asc",
+            "org/jetbrains/kotlinx/kotlinx-io-core/0.8.0/kotlinx-io-core-0.8.0.pom.md5",
+            ".index/test",
+            "org/jetbrains/kotlinx/.meta/test",
+            "org/jetbrains/kotlinx/maven-metadata.xml",
+        )
+
+        val zipUri = URI.create("jar:${repositoryZip.toPath().toUri()}")
+        val artifacts = FileSystems.newFileSystem(zipUri, mapOf<String, String>()).use { zipFs ->
+            zipFs.getPath("/").scanRepository { path, exception ->
+                fail("No errors were expected, but got $exception for $path")
+            }
+        }
+
+        assertEquals(1, artifacts.size)
+        artifacts.single().let { artifact ->
+            assertEquals(
+                ArtifactInfo.Gav("org.jetbrains.kotlinx", "kotlinx-io-core", "0.8.0"),
+                artifact.gav
+            )
+
+            val pomFile = artifact.artifacts.single()
+            assertSame(pomFile, artifact.pom)
+            pomFile.assertSignedAndHasChecksums(ChecksumType.MD5)
+            pomFile.artifact.assertBasicArtifact("org.jetbrains.kotlinx", "kotlinx-io-core", "0.8.0", "pom")
+        }
     }
 
     @Test
