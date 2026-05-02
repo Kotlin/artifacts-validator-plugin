@@ -49,8 +49,28 @@ public abstract class ArtifactsValidationTaskBase : DefaultTask() {
                     "To generate or update files describing artifacts, run the '$DUMP_ARTIFACTS_TASK_NAME' task."
         )
     }
+
+    internal fun loadRules(file: File): List<ArtifactRule> {
+        debug("Loading artifact rules from $file")
+        return file.readLines()
+            .filter { it.isNotBlank() && !it.startsWith("#") && !it.startsWith("//") }
+            .flatMap {
+                try {
+                    ArtifactRule.parseRule(it)
+                } catch (e: IllegalArgumentException) {
+                    throw GradleException("Error while parsing rules file $file: ${e.message}")
+                }
+            }
+    }
 }
 
+/**
+ * Checks that all artifacts from a Maven 2 repository pointed by [artifactsRepositoryDir]
+ * matches expected artifacts described using rules from [artifactRuleFiles], that there are no unexpected
+ * artifacts and that there are no missing artifacts, and all artifacts have an appropriate version. When configured
+ * using [requireSignatures] and [requireChecksums], the task also check signature and checksum files
+ * correspondingly.
+ */
 @DisableCachingByDefault
 public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTaskBase() {
     /**
@@ -71,10 +91,10 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
      * an expected version artifacts corresponding to these rules.
      */
     @get:Input
-    public abstract val artifactLists: MapProperty<File, String>
+    public abstract val artifactRuleFiles: MapProperty<File, String>
 
     /**
-     * Command line option parser for [artifactLists]. Overrides all values specified in [artifactLists].
+     * Command line option parser for [artifactRuleFiles]. Overrides all values specified in [artifactRuleFiles].
      */
     @Option(
         option = "artifacts-list",
@@ -98,7 +118,7 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
     private val cliArtifactLists: MutableMap<File, String> = mutableMapOf()
 
     private fun finalArtifactsLists(): Map<File, String> = cliArtifactLists.ifEmpty {
-        artifactLists.getOrElse(emptyMap())
+        artifactRuleFiles.getOrElse(emptyMap())
     }
 
     /**
@@ -176,15 +196,7 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
                 hasErrors = true
                 return@forEach
             }
-            debug("Loading artifact rules from $file")
-            val rules = file.readLines().filter { it.isNotBlank() }.flatMap {
-                try {
-                    ArtifactRule.parseRule(it)
-                } catch (e: IllegalArgumentException) {
-                    throw GradleException("Error while parsing rules file $file: ${e.message}", e)
-                }
-            }
-            fileToRules[file] = rules
+            fileToRules[file] = loadRules(file)
         }
 
         if (hasErrors) {
@@ -242,6 +254,95 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
     }
 }
 
+/**
+ * Checks that all artifacts from [publications] matches expected artifacts
+ * described using rules from [artifactRuleFiles], that there are no unexpected
+ * artifacts and that there are no missing artifacts.
+ *
+ * This task checks only the list of artifacts and does not verify any additional attributes.
+ */
+@DisableCachingByDefault
+public abstract class PublicationArtifactsValidationTask : ArtifactsValidationTaskBase() {
+    @get:InputFiles
+    public abstract val artifactRuleFiles: ConfigurableFileCollection
+
+    @get:Input
+    public abstract val publications: ListProperty<PublicationDescriptor>
+
+    public fun addPublicationProvider(descriptor: Provider<PublicationDescriptor>) {
+        publications.add(descriptor)
+    }
+
+    @TaskAction
+    public fun validate() {
+        val dumpFiles = artifactRuleFiles.files.filter { it.exists() }
+
+        val rules = dumpFiles.flatMap(::loadRules)
+
+        compareArtifactsImpl(
+            rules.mapTo(TreeSet()) { it.toArtifactIdentifier(null) },
+            publications.get().flatMapTo(TreeSet()) { it.toArtifactIdentifiers() }
+        )
+    }
+}
+
+/**
+ * Dumps [rules](ArtifactRule) describing artifacts from [publications]
+ * into either a single [sharedRulesFile] file, or one of the [perProjectRuleFiles],
+ * where the project is chosen using [PublicationDescriptor.projectPath].
+ *
+ * Either [sharedRulesFile] or [perProjectRuleFiles] should be configured,
+ * it's an error to configure them both simultaneously.
+ */
+@DisableCachingByDefault
+public abstract class PublicationArtifactsDumpTask : DefaultTask() {
+    @get:Input
+    public abstract val publications: ListProperty<PublicationDescriptor>
+
+    @get:OutputFile
+    @get:Optional
+    public abstract val sharedRulesFile: RegularFileProperty
+
+    @get:OutputFiles
+    public abstract val perProjectRuleFiles: MapProperty<String, File>
+
+    public fun addPublicationProvider(descriptor: Provider<PublicationDescriptor>) {
+        publications.add(descriptor)
+    }
+
+    @TaskAction
+    public fun dump() {
+        val project2publication = publications.get().groupBy { it.projectPath }
+
+        check(!(sharedRulesFile.isPresent && perProjectRuleFiles.get().isNotEmpty())) {
+            "Either sharedRulesFile, or perProjectRuleFiles should configured, but not both"
+        }
+
+        val file2publications = mutableMapOf<File, MutableList<PublicationDescriptor>>()
+
+        for ((project, publications) in project2publication) {
+            val file = if (sharedRulesFile.isPresent) {
+                sharedRulesFile.get().asFile
+            } else {
+                val projectDump = perProjectRuleFiles.get()[project]
+                check(projectDump != null) {
+                    "Dump was not configured for project $project"
+                }
+                projectDump
+            }
+            file2publications.getOrPut(file) { mutableListOf() }.addAll(publications)
+        }
+
+        for ((dumpFile, publications) in file2publications) {
+            dumpFile.bufferedWriter(Charsets.UTF_8).use { writer ->
+                publications.map { it.toRules() }.sorted().forEach {
+                    writer.appendLine(it)
+                }
+            }
+        }
+    }
+}
+
 private fun PublicationDescriptor.toArtifactIdentifiers(): List<String> {
     return artifacts.map {
         val info = ArtifactInfo(
@@ -264,88 +365,4 @@ private fun PublicationDescriptor.toRules(): String {
         .sorted()
         .joinToString(",")
     return "$ga/$classifierAndExtension"
-}
-
-@DisableCachingByDefault
-public abstract class PublicationArtifactsValidationTask : ArtifactsValidationTaskBase() {
-    @get:InputFiles
-    public abstract val artifactsDumpFiles: ConfigurableFileCollection
-
-    @get:Input
-    public abstract val publications: ListProperty<PublicationDescriptor>
-
-    public fun addPublicationProvider(descriptor: Provider<PublicationDescriptor>) {
-        publications.add(descriptor)
-    }
-
-    @TaskAction
-    public fun validate() {
-        val dumpFiles = artifactsDumpFiles.files.filter { it.exists() }
-
-        val rules = dumpFiles.flatMap { file ->
-            file.readLines()
-                .filter { it.isNotBlank() && !it.startsWith("#") && !it.startsWith("//") }
-                .flatMap {
-                    try {
-                        ArtifactRule.parseRule(it)
-                    } catch (e: IllegalArgumentException) {
-                        throw GradleException("Error while parsing rules file $file: ${e.message}")
-                    }
-                }
-        }
-
-        compareArtifactsImpl(
-            rules.mapTo(TreeSet()) { it.toArtifactIdentifier(null) },
-            publications.get().flatMapTo(TreeSet()) { it.toArtifactIdentifiers() }
-        )
-    }
-}
-
-@DisableCachingByDefault
-public abstract class PublicationArtifactsDumpTask : DefaultTask() {
-    @get:Input
-    public abstract val publications: ListProperty<PublicationDescriptor>
-
-    @get:OutputFile
-    @get:Optional
-    public abstract val defaultArtifactsDumpFile: RegularFileProperty
-
-    @get:OutputFiles
-    public abstract val artifactsDumpFiles: MapProperty<String, File>
-
-    public fun addPublicationProvider(descriptor: Provider<PublicationDescriptor>) {
-        publications.add(descriptor)
-    }
-
-    @TaskAction
-    public fun dump() {
-        val project2publication = publications.get().groupBy { it.projectPath }
-
-        check(!(defaultArtifactsDumpFile.isPresent && artifactsDumpFiles.get().isNotEmpty())) {
-            "Either a default dump file, or a per-project dumps should configured, but not both"
-        }
-
-        val file2publications = mutableMapOf<File, MutableList<PublicationDescriptor>>()
-
-        for ((project, publications) in project2publication) {
-            val file = if (defaultArtifactsDumpFile.isPresent) {
-                defaultArtifactsDumpFile.get().asFile
-            } else {
-                val projectDump = artifactsDumpFiles.get()[project]
-                check(projectDump != null) {
-                    "Dump was not configured for project $project"
-                }
-                projectDump
-            }
-            file2publications.getOrPut(file) { mutableListOf() }.addAll(publications)
-        }
-
-        for ((dumpFile, publications) in file2publications) {
-            dumpFile.bufferedWriter(Charsets.UTF_8).use { writer ->
-                publications.map { it.toRules() }.sorted().forEach {
-                    writer.appendLine(it)
-                }
-            }
-        }
-    }
 }

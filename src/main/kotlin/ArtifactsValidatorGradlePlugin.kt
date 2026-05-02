@@ -56,8 +56,8 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
                 if (!defaultDumpFile.toPath().normalize().startsWith(rootDirPath)) {
                     throw GradleException("Artifacts dump file must be located within the project directory: $defaultDumpFile")
                 }
-                checkTask.configure { it.artifactsDumpFiles.from(defaultDumpFile) }
-                dumpTask.configure { it.defaultArtifactsDumpFile.set(defaultDumpFile) }
+                checkTask.configure { it.artifactRuleFiles.from(defaultDumpFile) }
+                dumpTask.configure { it.sharedRulesFile.set(defaultDumpFile) }
             }
 
             project.applyRecursively {
@@ -73,14 +73,18 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
                 }
                 if (usePerProjectDumpFile) {
                     val projectDumpFile = ext.dumpFileRootDirectory.file("$dumpFilePrefix-$name.txt").get().asFile
-                    checkTask.configure { it.artifactsDumpFiles.from(projectDumpFile) }
-                    dumpTask.configure { it.artifactsDumpFiles.put(path, projectDumpFile) }
+                    checkTask.configure { it.artifactRuleFiles.from(projectDumpFile) }
+                    dumpTask.configure { it.perProjectRuleFiles.put(path, projectDumpFile) }
                 }
             }
         }
     }
 }
 
+/**
+ * Describes artifacts from [org.gradle.api.publish.maven.MavenArtifact]s
+ * associated with a particular [MavenPublication].
+ */
 public class PublicationDescriptor(
     public val projectPath: String,
     public val groupId: String,
@@ -114,8 +118,30 @@ public class PublicationDescriptor(
     }
 }
 
+/**
+ * Configures artifact validator plugin.
+ */
 public interface ArtifactsValidatorPluginSettingsExtension {
+    /**
+     * Artifact rules file's name's prefix. By default, `artifacts`.
+     *
+     * Artifact rules are stored in a [dumpFileRootDirectory] directory,
+     * and has either `<dumpFileNamePrefix>.txt` name (if [usePerProjectDumps] is `false`),
+     * or `<dumpFileNamePrefix>-<Project.name>.txt` name.
+     */
     public val dumpFileNamePrefix: Property<String>
+
+    /**
+     * Directory where rule files are stored. By default, `<projectRootDir>/gradle`.
+     */
     public val dumpFileRootDirectory: DirectoryProperty
+
+    /**
+     * Specifies if rules describing artifacts from all sub-projects should be stored in a single file (when `false`).
+     * or each project will have its own file. By default, `false`, meaning that all rules for all projects are merged
+     * into a single file.
+     *
+     * See [dumpFileNamePrefix] for information about rule file names.
+     */
     public val usePerProjectDumps: Property<Boolean>
 }
