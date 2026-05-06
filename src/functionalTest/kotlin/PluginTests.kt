@@ -102,7 +102,9 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
 
     @Test
     fun dumpArtifactsWithOverriddenRulesFile() {
-        copySettingsKts(
+        copySettingsKts()
+        copyBuildKts(
+            publicationBlock(artifactId = "basic-test-project") +
             """
 
             extensions.configure<kotlinx.validation.ArtifactsValidatorPluginSettingsExtension>("artifactsValidation") {
@@ -111,7 +113,6 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
             }
             """.trimIndent()
         )
-        copyBuildKts(publicationBlock(artifactId = "basic-test-project"))
         createFile("expected/custom-artifacts.txt", "org.jetbrains.kotlinx:basic-test-project/.jar,.pom\n")
 
         run("checkArtifacts") {
@@ -126,13 +127,16 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
 
             include(":lib")
             include(":ext")
+            """.trimIndent()
+        )
+        copyBuildKts(
+            """
 
             extensions.configure<kotlinx.validation.ArtifactsValidatorPluginSettingsExtension>("artifactsValidation") {
                 usePerProjectDumps.set(true)
             }
             """.trimIndent()
         )
-        copyBuildKts()
         copyBuildFile(
             "lib/build.gradle.kts",
             publicationBlock(artifactId = "lib")
@@ -163,13 +167,16 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
 
             include(":lib")
             include(":ext")
+            """.trimIndent()
+        )
+        copyBuildKts(
+            """
 
             extensions.configure<kotlinx.validation.ArtifactsValidatorPluginSettingsExtension>("artifactsValidation") {
                 usePerProjectDumps.set(true)
             }
             """.trimIndent()
         )
-        copyBuildKts()
         copyBuildFile(
             "lib/build.gradle.kts",
             publicationBlock(artifactId = "lib")
@@ -553,16 +560,15 @@ class PluginTests : PluginTestBase("/test-projects/basic") {
 
     @Test
     fun dumpArtifactsRejectsMissingPerProjectOutputConfiguration() {
-        copySettingsKts(
-            """
-
-            extensions.configure<kotlinx.validation.ArtifactsValidatorPluginSettingsExtension>("artifactsValidation") {
-                usePerProjectDumps.set(true)
-            }
-            """.trimIndent()
-        )
+        copySettingsKts()
         copyBuildKts(
             publicationBlock(artifactId = "basic-test-project") +
+                """
+
+                extensions.configure<kotlinx.validation.ArtifactsValidatorPluginSettingsExtension>("artifactsValidation") {
+                    usePerProjectDumps.set(true)
+                }
+                """.trimIndent() +
                 """
 
                 tasks.named<kotlinx.validation.PublicationArtifactsDumpTask>("dumpArtifacts") {

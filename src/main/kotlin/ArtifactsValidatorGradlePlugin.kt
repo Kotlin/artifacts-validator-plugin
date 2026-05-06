@@ -3,12 +3,14 @@ package kotlinx.validation
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.initialization.Settings
 import org.gradle.api.provider.Property
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.language.base.plugins.LifecycleBasePlugin
+import java.io.File
 import java.io.Serializable
 
 private fun Project.applyRecursively(block: Project.() -> Unit) {
@@ -23,24 +25,28 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
         public const val VALIDATE_LOCAL_MAVEN_REPO_TASK_NAME: String = "validateLocalMavenRepo"
     }
 
-    @Suppress("UnstableApiUsage")
     override fun apply(target: Settings) {
-        val ext = target.extensions.create(
-            "artifactsValidation",
-            ArtifactsValidatorPluginSettingsExtension::class.java,
-        )
-
-        val rootDirPath = target.rootDir.toPath()
-
-        ext.usePerProjectDumps.convention(false)
-        ext.dumpFileNamePrefix.convention("artifacts")
-        ext.dumpFileRootDirectory.convention(target.layout.rootDirectory.dir("gradle"))
-
+        // Find the root project, create the extension and tasks in it.
+        // Then, traverse all the subprojects and configure tasks to validate their Maven artifacts.
         target.gradle.beforeProject { project ->
             if (project.path != ":") return@beforeProject
 
-            val checkTask = project.tasks.register(CHECK_ARTIFACTS_TASK_NAME, PublicationArtifactsValidationTask::class.java)
+            val rootDir = project.layout.projectDirectory
+            val ext = project.extensions.create(
+                "artifactsValidation",
+                ArtifactsValidatorPluginSettingsExtension::class.java,
+            )
+            ext.usePerProjectDumps.convention(false)
+            ext.dumpFileNamePrefix.convention("artifacts")
+            ext.dumpFileRootDirectory.convention(rootDir.dir("gradle"))
+
+            // A task validating artifacts registered with MavenPublications
+            val checkTask =
+                project.tasks.register(CHECK_ARTIFACTS_TASK_NAME, PublicationArtifactsValidationTask::class.java)
+            // A task dumping a list of all artifacts that are currently registered with MavenPublications
+            // Refer to README or ArtifactRule.kt for details about the expected rule file format.
             val dumpTask = project.tasks.register(DUMP_ARTIFACTS_TASK_NAME, PublicationArtifactsDumpTask::class.java)
+            // A CLI task for validating local M2 repo (or a central portal's deployment ZIP)
             project.tasks.register(VALIDATE_LOCAL_MAVEN_REPO_TASK_NAME, ValidateLocalMavenRepositoryTask::class.java)
 
             project.tasks.configureEach {
@@ -49,20 +55,24 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
                 }
             }
 
-            val dumpFilePrefix = ext.dumpFileNamePrefix.get()
-            val usePerProjectDumpFile = ext.usePerProjectDumps.get()
-            if (!usePerProjectDumpFile) {
-                val defaultDumpFile = ext.dumpFileRootDirectory.file("$dumpFilePrefix.txt").get().asFile
-                if (!defaultDumpFile.toPath().normalize().startsWith(rootDirPath)) {
-                    throw GradleException("Artifacts dump file must be located within the project directory: $defaultDumpFile")
+            // The plugin can either dump/read artifacts to a single file, or a separate per-project files.
+            // If artifacts list is stored in a single file, let's configure it now.
+            checkTask.configure {
+                ext.onSingleDumpFileConfigured(rootDir) { dumpFile ->
+                    it.artifactRuleFiles.from(dumpFile)
                 }
-                checkTask.configure { it.artifactRuleFiles.from(defaultDumpFile) }
-                dumpTask.configure { it.sharedRulesFile.set(defaultDumpFile) }
+            }
+            dumpTask.configure {
+                ext.onSingleDumpFileConfigured(rootDir) { dumpFile ->
+                    it.sharedRulesFile.set(dumpFile)
+                }
             }
 
+            // Scan all subprojects
             project.applyRecursively {
                 pluginManager.withPlugin("maven-publish") {
                     val publishing = extensions.getByType(PublishingExtension::class.java)
+                    // Discover all publications and register them in dump and check tasks
                     publishing.publications.withType(MavenPublication::class.java).configureEach { publication ->
                         val descriptor = providers.provider {
                             PublicationDescriptor.from(this@applyRecursively.path, publication)
@@ -71,13 +81,74 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
                         dumpTask.configure { it.addPublicationProvider(descriptor) }
                     }
                 }
-                if (usePerProjectDumpFile) {
-                    val projectDumpFile = ext.dumpFileRootDirectory.file("$dumpFilePrefix-$name.txt").get().asFile
-                    checkTask.configure { it.artifactRuleFiles.from(projectDumpFile) }
-                    dumpTask.configure { it.perProjectRuleFiles.put(path, projectDumpFile) }
+                // If the (root) project uses per-project artifact lists,
+                // we can now resolve and register corresponding files.
+                checkTask.configure {
+                    ext.onPerProjectDumpFileConfigured(rootDir, this) { dumpFile ->
+                        it.artifactRuleFiles.from(dumpFile)
+                    }
+                }
+                dumpTask.configure {
+                    ext.onPerProjectDumpFileConfigured(rootDir, this) { dumpFile ->
+                        it.perProjectRuleFiles.put(path, dumpFile)
+                    }
                 }
             }
         }
+    }
+}
+
+/**
+ * Resolves single global artifacts list file if [ArtifactsValidatorPluginSettingsExtension.usePerProjectDumps]
+ * is `false` and passes it to the [block]. Otherwise, the [block] will not be invoked.
+ */
+private fun ArtifactsValidatorPluginSettingsExtension.onSingleDumpFileConfigured(
+    projectRootDirectory: Directory,
+    block: (File) -> Unit
+) {
+    val usePerProjectDumpFile = usePerProjectDumps.get()
+    if (usePerProjectDumpFile) return
+
+    val dumpFilePrefix = dumpFileNamePrefix.get()
+    val defaultDumpFile = dumpFileRootDirectory.file("$dumpFilePrefix.txt").get().asFile
+    // Files have to reside withing the root project directory
+    checkFileDoesNotEscapeRoot(projectRootDirectory, defaultDumpFile) {
+        "Configured artifacts file is located outside of root project root directory. " +
+                "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory.asFile.get()}\" and " +
+                "dumpFileNamePrefix (\"${dumpFileNamePrefix.get()}\") properties to fix this error."
+    }
+    block(defaultDumpFile)
+}
+
+/**
+ * Resolves an artifacts list file for [project] if [ArtifactsValidatorPluginSettingsExtension.usePerProjectDumps]
+ * is `true` and passes it to the [block]. Otherwise, the [block] will not be invoked.
+ */
+private fun ArtifactsValidatorPluginSettingsExtension.onPerProjectDumpFileConfigured(
+    projectRootDirectory: Directory,
+    project: Project,
+    block: (File) -> Unit
+) {
+    val usePerProjectDumpFile = usePerProjectDumps.get()
+    if (!usePerProjectDumpFile) return
+
+    val dumpFilePrefix = dumpFileNamePrefix.get()
+    val projectDumpFile = dumpFileRootDirectory.file("$dumpFilePrefix-${project.name}.txt").get().asFile
+    // Files have to reside withing the root project directory
+    checkFileDoesNotEscapeRoot(projectRootDirectory, projectDumpFile) {
+        "Configured artifacts file for project \"${project.name}\" (${project.path}) " +
+                "is located outside of the root project root directory. " +
+                "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory.get()}\") and " +
+                "dumpFileNamePrefix (\"${dumpFileNamePrefix.get()}\") properties to fix this error."
+    }
+    block(projectDumpFile)
+}
+
+private fun checkFileDoesNotEscapeRoot(projectRootDirectory: Directory, file: File, messageProvider: () -> String) {
+    val canonicalRoot = projectRootDirectory.asFile.canonicalFile
+    val canonicalFile = file.canonicalFile
+    if (!canonicalFile.startsWith(canonicalRoot)) {
+        throw GradleException(messageProvider())
     }
 }
 
@@ -122,6 +193,8 @@ public class PublicationDescriptor(
  * Configures artifact validator plugin.
  */
 public interface ArtifactsValidatorPluginSettingsExtension {
+    // TODO: Project names can duplicate, let's figure out what to do when it will become a problem.
+    //       We can support mapping a Project to a desired filename, for example.
     /**
      * Artifact rules file's name's prefix. By default, `artifacts`.
      *
