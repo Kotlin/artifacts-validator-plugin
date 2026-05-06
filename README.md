@@ -42,13 +42,9 @@ The root `check` task depends on `checkArtifacts`.
 
 ## Settings extension
 
-The plugin exposes an `artifactsValidation` extension in `settings.gradle.kts`:
+The plugin adds an `artifactsValidation` extension to the root project. You can access it in `build.gradle.kts`:
 
 ```kotlin
-plugins {
-    id("org.jetbrains.kotlinx.artifacts-validator-plugin") version "0.0.1"
-}
-
 artifactsValidation {
     dumpFileNamePrefix.set("artifacts")
     dumpFileRootDirectory.set(layout.rootDirectory.dir("gradle"))
