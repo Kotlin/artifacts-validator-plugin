@@ -1,14 +1,7 @@
 public final class kotlinx/validation/ArtifactsValidationSettingsPlugin : org/gradle/api/Plugin {
-	public static final field CHECK_ARTIFACTS_TASK_NAME Ljava/lang/String;
-	public static final field Companion Lkotlinx/validation/ArtifactsValidationSettingsPlugin$Companion;
-	public static final field DUMP_ARTIFACTS_TASK_NAME Ljava/lang/String;
-	public static final field VALIDATE_LOCAL_MAVEN_REPO_TASK_NAME Ljava/lang/String;
 	public fun <init> ()V
 	public synthetic fun apply (Ljava/lang/Object;)V
 	public fun apply (Lorg/gradle/api/initialization/Settings;)V
-}
-
-public final class kotlinx/validation/ArtifactsValidationSettingsPlugin$Companion {
 }
 
 public abstract class kotlinx/validation/ArtifactsValidationTaskBase : org/gradle/api/DefaultTask {
@@ -22,6 +15,8 @@ public abstract interface class kotlinx/validation/ArtifactsValidatorPluginSetti
 }
 
 public abstract class kotlinx/validation/PublicationArtifactsDumpTask : org/gradle/api/DefaultTask {
+	public static final field Companion Lkotlinx/validation/PublicationArtifactsDumpTask$Companion;
+	public static final field TASK_NAME Ljava/lang/String;
 	public fun <init> ()V
 	public final fun addPublicationProvider (Lorg/gradle/api/provider/Provider;)V
 	public final fun dump ()V
@@ -30,12 +25,20 @@ public abstract class kotlinx/validation/PublicationArtifactsDumpTask : org/grad
 	public abstract fun getSharedRulesFile ()Lorg/gradle/api/file/RegularFileProperty;
 }
 
+public final class kotlinx/validation/PublicationArtifactsDumpTask$Companion {
+}
+
 public abstract class kotlinx/validation/PublicationArtifactsValidationTask : kotlinx/validation/ArtifactsValidationTaskBase {
+	public static final field Companion Lkotlinx/validation/PublicationArtifactsValidationTask$Companion;
+	public static final field TASK_NAME Ljava/lang/String;
 	public fun <init> ()V
 	public final fun addPublicationProvider (Lorg/gradle/api/provider/Provider;)V
 	public abstract fun getArtifactRuleFiles ()Lorg/gradle/api/file/ConfigurableFileCollection;
 	public abstract fun getPublications ()Lorg/gradle/api/provider/ListProperty;
 	public final fun validate ()V
+}
+
+public final class kotlinx/validation/PublicationArtifactsValidationTask$Companion {
 }
 
 public final class kotlinx/validation/PublicationDescriptor : java/io/Serializable {
@@ -54,6 +57,8 @@ public final class kotlinx/validation/PublicationDescriptor$ArtifactDescriptor :
 }
 
 public abstract class kotlinx/validation/ValidateLocalMavenRepositoryTask : kotlinx/validation/ArtifactsValidationTaskBase {
+	public static final field Companion Lkotlinx/validation/ValidateLocalMavenRepositoryTask$Companion;
+	public static final field TASK_NAME Ljava/lang/String;
 	public fun <init> ()V
 	public final fun artifactsListOption (Ljava/util/List;)V
 	public abstract fun getArtifactRuleFiles ()Lorg/gradle/api/provider/MapProperty;
@@ -61,6 +66,10 @@ public abstract class kotlinx/validation/ValidateLocalMavenRepositoryTask : kotl
 	public abstract fun getArtifactsRepositoryZip ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getRequireChecksums ()Lorg/gradle/api/provider/SetProperty;
 	public abstract fun getRequireSignatures ()Lorg/gradle/api/provider/Property;
+	public final fun requireChecksumsOption (Ljava/lang/String;)V
 	public final fun validate ()V
+}
+
+public final class kotlinx/validation/ValidateLocalMavenRepositoryTask$Companion {
 }
 

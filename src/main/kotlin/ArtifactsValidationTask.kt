@@ -1,6 +1,5 @@
 package kotlinx.validation
 
-import kotlinx.validation.ArtifactsValidationSettingsPlugin.Companion.DUMP_ARTIFACTS_TASK_NAME
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
@@ -47,7 +46,7 @@ public abstract class ArtifactsValidationTaskBase : DefaultTask() {
 
         throw GradleException(
             "List of found artifacts does not match list of expected artifacts. See log for more details. " +
-                    "To generate or update files describing artifacts, run the '$DUMP_ARTIFACTS_TASK_NAME' task."
+                    "To generate or update files describing artifacts, run the '${PublicationArtifactsDumpTask.TASK_NAME}' task."
         )
     }
 
@@ -312,6 +311,10 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
             throw GradleException("Some artifacts were not signed or missing checksum files. See log for more details.")
         }
     }
+
+    public companion object {
+        public const val TASK_NAME: String = "validateLocalMavenRepo"
+    }
 }
 
 /**
@@ -343,6 +346,10 @@ public abstract class PublicationArtifactsValidationTask : ArtifactsValidationTa
             rules.mapTo(TreeSet()) { it.toArtifactIdentifier(null) },
             publications.get().flatMapTo(TreeSet()) { it.toArtifactIdentifiers() }
         )
+    }
+
+    public companion object {
+        public const val TASK_NAME: String = "checkArtifacts"
     }
 }
 
@@ -400,6 +407,10 @@ public abstract class PublicationArtifactsDumpTask : DefaultTask() {
                 }
             }
         }
+    }
+
+    public companion object {
+        public const val TASK_NAME: String = "dumpArtifacts"
     }
 }
 

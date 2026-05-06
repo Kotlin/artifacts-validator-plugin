@@ -19,12 +19,6 @@ private fun Project.applyRecursively(block: Project.() -> Unit) {
 }
 
 public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
-    public companion object {
-        public const val CHECK_ARTIFACTS_TASK_NAME: String = "checkArtifacts"
-        public const val DUMP_ARTIFACTS_TASK_NAME: String = "dumpArtifacts"
-        public const val VALIDATE_LOCAL_MAVEN_REPO_TASK_NAME: String = "validateLocalMavenRepo"
-    }
-
     override fun apply(target: Settings) {
         // Find the root project, create the extension and tasks in it.
         // Then, traverse all the subprojects and configure tasks to validate their Maven artifacts.
@@ -41,13 +35,30 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
             ext.dumpFileRootDirectory.convention(rootDir.dir("gradle"))
 
             // A task validating artifacts registered with MavenPublications
-            val checkTask =
-                project.tasks.register(CHECK_ARTIFACTS_TASK_NAME, PublicationArtifactsValidationTask::class.java)
+            val checkTask = project.tasks.register(
+                PublicationArtifactsValidationTask.TASK_NAME,
+                PublicationArtifactsValidationTask::class.java
+            ) {
+                it.group = LifecycleBasePlugin.VERIFICATION_GROUP
+                it.description = "Validates the artifacts from configured Maven publications"
+            }
             // A task dumping a list of all artifacts that are currently registered with MavenPublications
             // Refer to README or ArtifactRule.kt for details about the expected rule file format.
-            val dumpTask = project.tasks.register(DUMP_ARTIFACTS_TASK_NAME, PublicationArtifactsDumpTask::class.java)
+            val dumpTask = project.tasks.register(
+                PublicationArtifactsDumpTask.TASK_NAME,
+                PublicationArtifactsDumpTask::class.java
+            ) {
+                it.group = LifecycleBasePlugin.VERIFICATION_GROUP
+                it.description = "Dumps the list of artifacts from configured Maven publications"
+            }
             // A CLI task for validating local M2 repo (or a central portal's deployment ZIP)
-            project.tasks.register(VALIDATE_LOCAL_MAVEN_REPO_TASK_NAME, ValidateLocalMavenRepositoryTask::class.java)
+            project.tasks.register(
+                ValidateLocalMavenRepositoryTask.TASK_NAME,
+                ValidateLocalMavenRepositoryTask::class.java
+            ) {
+                it.group = LifecycleBasePlugin.VERIFICATION_GROUP
+                it.description = "Validates the artifacts from a standalone local pubMaven repository"
+            }
 
             project.tasks.configureEach {
                 if (it.name == LifecycleBasePlugin.CHECK_TASK_NAME) {
