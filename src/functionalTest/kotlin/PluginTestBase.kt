@@ -5,62 +5,57 @@ import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import java.nio.file.Files
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.copyToRecursively
+import kotlin.io.path.toPath
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 
-abstract class PluginTestBase(val resourcesPath: String) {
+abstract class PluginTestBase {
     @field:TempDir
     lateinit var projectRoot: File
 
     private var gradleVersion: String? = null
 
-    fun copyFile(from: String, to: String, appendText: String? = null) {
-        val dstFile = projectRoot.resolve(to)
-        dstFile.parentFile?.mkdirs()
-        val srcStream = PluginTestBase::class.java.getResourceAsStream(from)
-        requireNotNull(srcStream) {
-            "$from was not found among project resources"
-        }
-        srcStream.use {
-            dstFile.outputStream().use { outStream ->
-                srcStream.copyTo(outStream)
-            }
-        }
-        if (!appendText.isNullOrEmpty()) {
-            dstFile.appendText(appendText)
-        }
+    fun copyProjects(vararg projectPaths: String) {
+        projectPaths.forEach(::copyProject)
     }
 
-    fun copySettingsKts(appendText: String? = null) {
-        copyFile("$resourcesPath/settings.gradle.kts", "settings.gradle.kts", appendText)
-    }
-
-    fun copyBuildKts(appendText: String? = null) {
-        copyFile("$resourcesPath/build.gradle.kts", "build.gradle.kts", appendText)
-    }
-
-    fun createFile(path: String, contents: String? = null) {
-        val file = projectRoot.resolve(path)
-        file.parentFile.mkdirs()
-        file.createNewFile()
-        if (contents != null) {
-            file.writeText(contents)
+    @OptIn(ExperimentalPathApi::class)
+    fun copyProject(projectPath: String) {
+        val rootResource = requireNotNull(PluginTestBase::class.java.getResource(projectPath)) {
+            "$projectPath was not found among project resources"
         }
+        val rootPath = rootResource.toURI().toPath()
+        rootPath.copyToRecursively(projectRoot.toPath(), followLinks = false, overwrite = true)
     }
 
     fun createDir(path: String) {
         projectRoot.resolve(path).mkdirs()
     }
 
-    fun createZip(path: String, vararg entries: String) {
-        val zipFile = projectRoot.resolve(path)
+    fun createZipFromDirectory(sourceDirPath: String, zipPath: String) {
+        val sourceDir = projectRoot.resolve(sourceDirPath).toPath()
+        require(Files.isDirectory(sourceDir)) {
+            "$sourceDirPath should point to an existing directory"
+        }
+
+        val zipFile = projectRoot.resolve(zipPath)
         zipFile.parentFile.mkdirs()
         ZipOutputStream(zipFile.outputStream().buffered()).use { zip ->
-            entries.forEach { entry ->
-                zip.putNextEntry(ZipEntry(entry))
-                zip.closeEntry()
+            Files.walk(sourceDir).use { paths ->
+                paths
+                    .filter(Files::isRegularFile)
+                    .filter { it.fileName.toString() != ".gitkeep" }
+                    .forEach { source ->
+                        val relativePath = sourceDir.relativize(source).toString().replace(File.separatorChar, '/')
+                        zip.putNextEntry(ZipEntry(relativePath))
+                        Files.copy(source, zip)
+                        zip.closeEntry()
+                    }
             }
         }
     }
@@ -79,10 +74,6 @@ abstract class PluginTestBase(val resourcesPath: String) {
                     it
                 }
             }
-
-    fun useGradleVersion(gradleVersion: String) {
-        this.gradleVersion = gradleVersion
-    }
 
     fun run(vararg commands: String, block: BuildResult.() -> Unit) {
         block(prepareRunner(*commands).build())

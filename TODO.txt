@@ -1,0 +1,4 @@
+- Add comments with description of what is going on in the code: expected file formats, the logic behind it, etc.
+- Tests could be more illustrative and readable
+    - put all configs into resources or constants
+    - check how tests are implemented in Kover or KGP

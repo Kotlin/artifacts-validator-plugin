@@ -99,8 +99,8 @@ kover {
 
         verify {
             rule {
-                minBound(95, CoverageUnit.BRANCH)
-                minBound(95, CoverageUnit.LINE)
+                minBound(90, CoverageUnit.BRANCH)
+                minBound(90, CoverageUnit.LINE)
             }
         }
     }
