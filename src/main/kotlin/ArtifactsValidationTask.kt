@@ -6,16 +6,15 @@ import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.*
 import org.gradle.api.tasks.*
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.options.Option
 import org.gradle.work.DisableCachingByDefault
 import java.io.File
+import java.net.URI
 import java.nio.file.FileSystems
 import java.nio.file.Paths
-import java.net.URI
 import java.util.*
 
 public abstract class ArtifactsValidationTaskBase : DefaultTask() {
@@ -159,13 +158,23 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
      */
     @get:Input
     @get:Optional
-    @get:Option(
-        option = "require-checksums",
-        description = "Verify that every artifact has associated checksum files and checksums are correct. " +
-                "By default, the set of checksums is empty, meaning no checksum validation. " +
-                "Acceptable values are: MD5, SHA1, SHA256, SHA512"
-    )
     public abstract val requireChecksums: SetProperty<String>
+
+    @Option(
+        option = "require-checksums",
+        description = "Verify that each artifact has a set of checksum files (like `.md5`, `.sha1``) associated with. " +
+                "By default, the set of checksums is empty, meaning no checksum validation. " +
+                "Accepts a comma-separated list of values: MD5, SHA1, SHA256, SHA512"
+    )
+    public fun requireChecksumsOption(value: String) {
+        requireChecksums.set(
+            value
+                .split(',')
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .toSet()
+        )
+    }
 
     @TaskAction
     public fun validate() {

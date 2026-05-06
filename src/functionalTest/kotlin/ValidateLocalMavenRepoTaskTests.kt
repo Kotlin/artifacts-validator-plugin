@@ -155,8 +155,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
             "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1",
             "--require-signatures",
-            "--require-checksums=md5",
-            "--require-checksums=Sha256"
+            "--require-checksums=md5, Sha256"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
             outputContains("[Artifacts Validation] All artifacts are signed.")
@@ -177,8 +176,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
             "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1",
             "--require-signatures",
-            "--require-checksums=md5",
-            "--require-checksums=sha1"
+            "--require-checksums=md5,sha1"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
             outputContains("artifact-core-0.0.1.pom is not signed.")
@@ -220,7 +218,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
             "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1",
-            "--require-checksums=sha999"
+            "--require-checksums=md5,sha999"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
             outputContains("Invalid checksum type: sha999. Use one of MD5, SHA1, SHA256, SHA512")
