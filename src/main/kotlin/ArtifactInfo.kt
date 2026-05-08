@@ -138,7 +138,15 @@ private fun Collection<ArtifactInfo>.groupArtifacts(
 
 private fun SnapshotResolutionStrategy.resolveSnapshot(files: List<ArtifactInfo>): ArtifactInfo? = when (this) {
     SnapshotResolutionStrategy.FAIL -> null
-    SnapshotResolutionStrategy.LATEST_FILE -> files.maxByOrNull { it.actualVersion }
+    SnapshotResolutionStrategy.LATEST_FILE -> files.maxByOrNull {
+        // Snapshot version has the following format: <version>-<timestamp>-<counter>
+        val version = it.actualVersion
+        val idx = version.lastIndexOf('-')
+        // Well, the version has an invalid format, but let's deal with it anyway
+        if (idx < 0) return@maxByOrNull version
+        val counter = version.substring(idx + 1)
+        "${version.substring(0, idx)}-${counter.padStart(5, '0')}"
+    }
 }
 
 private fun Path.isMavenMetadataFile(): Boolean {

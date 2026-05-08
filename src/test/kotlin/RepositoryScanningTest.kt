@@ -241,6 +241,7 @@ class RepositoryScanningTest {
             "org/jetbrains/kotlinx/kotlinx-io-bytestring/0.8.4-SNAPSHOT/kotlinx-io-bytestring-0.8.4-20260206.112233-1.jar.asc",
             "org/jetbrains/kotlinx/kotlinx-io-bytestring/0.8.4-SNAPSHOT/kotlinx-io-bytestring-0.8.4-20260206.112233-2.jar",
             "org/jetbrains/kotlinx/kotlinx-io-bytestring/0.8.4-SNAPSHOT/kotlinx-io-bytestring-0.8.4-20260206.112233-2.jar.md5",
+            "org/jetbrains/kotlinx/kotlinx-io-bytestring/0.8.4-SNAPSHOT/kotlinx-io-bytestring-0.8.4-20260206.112233-10.jar",
             )
 
         val root = repositoryRoot.toPath()
@@ -257,11 +258,11 @@ class RepositoryScanningTest {
         assertEquals(1, results.size)
         results.first().artifacts.single().let { artifact ->
             assertEquals(
-                "kotlinx-io-bytestring-0.8.4-20260206.112233-2.jar",
+                "kotlinx-io-bytestring-0.8.4-20260206.112233-10.jar",
                 artifact.artifact.fileName
             )
             assertFalse(artifact.isSigned)
-            assertTrue(artifact.hasChecksums)
+            assertFalse(artifact.hasChecksums)
         }
     }
 }
