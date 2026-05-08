@@ -8,7 +8,9 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.initialization.Settings
 import org.gradle.api.provider.Property
 import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.maven.MavenArtifact
 import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.publish.maven.internal.publication.MavenPublicationInternal
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import java.io.File
 import java.io.Serializable
@@ -180,21 +182,23 @@ public class PublicationDescriptor(
     ) : Serializable
 
     internal companion object {
-        // MavenPublication does not list pom file as an artifact,
-        // but we need it for several reasons:
-        // - it is still there in the repo, anyway
-        // - if artifact consists of a pom file only, we need to track it
-        private val POM_ARTIFACT = ArtifactDescriptor("", "pom")
         internal fun from(projectPath: String, mavenPublication: MavenPublication): PublicationDescriptor {
-            val artifacts = mavenPublication.artifacts.map {
+            val artifacts = if (mavenPublication is MavenPublicationInternal) {
+                // Internal publication contains all artifacts that are actually published,
+                // include pom and module files. MavenPublication.artifacts does not contain them.
+                mavenPublication.asNormalisedPublication().allArtifacts
+            } else {
+                mavenPublication.artifacts
+            }
+            val artifactDescriptors = artifacts.map {
                 ArtifactDescriptor(it.classifier ?: "", it.extension)
-            } + POM_ARTIFACT
+            }
             return PublicationDescriptor(
                 projectPath,
                 mavenPublication.groupId,
                 mavenPublication.artifactId,
                 mavenPublication.version,
-                artifacts
+                artifactDescriptors
             )
         }
     }
