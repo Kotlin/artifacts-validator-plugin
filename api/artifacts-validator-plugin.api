@@ -18,7 +18,6 @@ public abstract class kotlinx/validation/PublicationArtifactsDumpTask : org/grad
 	public static final field Companion Lkotlinx/validation/PublicationArtifactsDumpTask$Companion;
 	public static final field TASK_NAME Ljava/lang/String;
 	public fun <init> ()V
-	public final fun addPublicationProvider (Lorg/gradle/api/provider/Provider;)V
 	public final fun dump ()V
 	public abstract fun getPerProjectRuleFiles ()Lorg/gradle/api/provider/MapProperty;
 	public abstract fun getPublications ()Lorg/gradle/api/provider/ListProperty;
@@ -32,7 +31,6 @@ public abstract class kotlinx/validation/PublicationArtifactsValidationTask : ko
 	public static final field Companion Lkotlinx/validation/PublicationArtifactsValidationTask$Companion;
 	public static final field TASK_NAME Ljava/lang/String;
 	public fun <init> ()V
-	public final fun addPublicationProvider (Lorg/gradle/api/provider/Provider;)V
 	public abstract fun getArtifactRuleFiles ()Lorg/gradle/api/file/ConfigurableFileCollection;
 	public abstract fun getPublications ()Lorg/gradle/api/provider/ListProperty;
 	public final fun validate ()V

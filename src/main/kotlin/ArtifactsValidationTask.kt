@@ -332,10 +332,6 @@ public abstract class PublicationArtifactsValidationTask : ArtifactsValidationTa
     @get:Input
     public abstract val publications: ListProperty<PublicationDescriptor>
 
-    public fun addPublicationProvider(descriptor: Provider<PublicationDescriptor>) {
-        publications.add(descriptor)
-    }
-
     @TaskAction
     public fun validate() {
         val dumpFiles = artifactRuleFiles.files.filter { it.exists() }
