@@ -373,10 +373,6 @@ public abstract class PublicationArtifactsDumpTask : DefaultTask() {
     @get:OutputFiles
     public abstract val perProjectRuleFiles: MapProperty<String, File>
 
-    public fun addPublicationProvider(descriptor: Provider<PublicationDescriptor>) {
-        publications.add(descriptor)
-    }
-
     @TaskAction
     public fun dump() {
         val project2publication = publications.get().groupBy { it.projectPath }

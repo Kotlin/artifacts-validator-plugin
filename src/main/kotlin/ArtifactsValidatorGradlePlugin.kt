@@ -88,8 +88,8 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
                         val descriptor = providers.provider {
                             PublicationDescriptor.from(this@applyRecursively.path, publication)
                         }
-                        checkTask.configure { it.addPublicationProvider(descriptor) }
-                        dumpTask.configure { it.addPublicationProvider(descriptor) }
+                        checkTask.configure { it.publications.add(descriptor) }
+                        dumpTask.configure { it.publications.add(descriptor) }
                     }
                 }
                 // If the (root) project uses per-project artifact lists,
