@@ -57,7 +57,7 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
                 ValidateLocalMavenRepositoryTask::class.java
             ) {
                 it.group = LifecycleBasePlugin.VERIFICATION_GROUP
-                it.description = "Validates the artifacts from a standalone local pubMaven repository"
+                it.description = "Validates the artifacts from a standalone local Maven repository"
             }
 
             project.tasks.configureEach {
@@ -124,8 +124,8 @@ private fun ArtifactsValidatorPluginSettingsExtension.onSingleDumpFileConfigured
     val defaultDumpFile = dumpFileRootDirectory.file("$dumpFilePrefix.txt").get().asFile
     // Files have to reside withing the root project directory
     checkFileDoesNotEscapeRoot(projectRootDirectory, defaultDumpFile) {
-        "Configured artifacts file is located outside of root project root directory. " +
-                "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory.asFile.get()}\" and " +
+        "Configured artifacts file is located outside of the root project' root directory. " +
+                "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory.get()}\") and " +
                 "dumpFileNamePrefix (\"${dumpFileNamePrefix.get()}\") properties to fix this error."
     }
     block(defaultDumpFile)
@@ -148,7 +148,7 @@ private fun ArtifactsValidatorPluginSettingsExtension.onPerProjectDumpFileConfig
     // Files have to reside withing the root project directory
     checkFileDoesNotEscapeRoot(projectRootDirectory, projectDumpFile) {
         "Configured artifacts file for project \"${project.name}\" (${project.path}) " +
-                "is located outside of the root project root directory. " +
+                "is located outside of the root project's root directory. " +
                 "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory.get()}\") and " +
                 "dumpFileNamePrefix (\"${dumpFileNamePrefix.get()}\") properties to fix this error."
     }

@@ -198,7 +198,7 @@ class RepositoryScanningTest {
         assertEquals("test/file", errors.single().first.toString())
 
         val expectedError = "The artifact file has invalid path format: " +
-                "is has to contain at least 4 segments, but contained only 2: test/file"
+                "it has to contain at least 4 segments, but contained only 2: test/file"
         assertEquals(expectedError, errors.single().second)
     }
 

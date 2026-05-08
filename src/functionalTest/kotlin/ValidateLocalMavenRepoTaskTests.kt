@@ -136,7 +136,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
-            outputContains("Error detecting while reading file")
+            outputContains("Error detected while reading file")
             outputContains("broken/path")
             outputContains("Errors were detected while loading artifacts info. See log for details")
         }

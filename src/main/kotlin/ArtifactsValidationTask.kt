@@ -161,7 +161,7 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
 
     @Option(
         option = "require-checksums",
-        description = "Verify that each artifact has a set of checksum files (like `.md5`, `.sha1``) associated with. " +
+        description = "Verify that each artifact has a set of checksum files (like '.md5', '.sha1') associated with. " +
                 "By default, the set of checksums is empty, meaning no checksum validation. " +
                 "Accepts a comma-separated list of values: MD5, SHA1, SHA256, SHA512"
     )
@@ -212,7 +212,7 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
                 val repositoryRoot = artifactsRepositoryDir.get().asFile.toPath()
                 debug("Loading artifacts from directory $repositoryRoot")
                 repositoryRoot.scanRepository(SnapshotResolutionStrategy.LATEST_FILE) { path, exception ->
-                    error("Error detecting while reading file $path: ${exception.message}")
+                    error("Error detected while reading file $path: ${exception.message}")
                     hasErrors = true
                 }
             }
@@ -223,7 +223,7 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
                 val zipUri = URI.create("jar:${repositoryZip.toUri()}")
                 FileSystems.newFileSystem(zipUri, mapOf<String, String>()).use { zipFs ->
                     zipFs.getPath("/").scanRepository(SnapshotResolutionStrategy.LATEST_FILE) { path, exception ->
-                        error("Error detecting while reading file $path: ${exception.message}")
+                        error("Error detected while reading file $path: ${exception.message}")
                         hasErrors = true
                     }
                 }
@@ -382,7 +382,7 @@ public abstract class PublicationArtifactsDumpTask : DefaultTask() {
         val project2publication = publications.get().groupBy { it.projectPath }
 
         check(!(sharedRulesFile.isPresent && perProjectRuleFiles.get().isNotEmpty())) {
-            "Either sharedRulesFile, or perProjectRuleFiles should configured, but not both"
+            "Either sharedRulesFile, or perProjectRuleFiles should be configured, but not both"
         }
 
         val file2publications = mutableMapOf<File, MutableList<PublicationDescriptor>>()

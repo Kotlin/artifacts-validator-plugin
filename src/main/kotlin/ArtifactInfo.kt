@@ -226,7 +226,7 @@ internal data class ArtifactInfo(
  */
 internal fun Path.extractArtifactInfo(fullPath: Path = this): Result<ArtifactInfo> {
     require(!isAbsolute) {
-        "Only relative path are allowed, but the function was invoked an absolute path $fullPath"
+        "Only relative paths are allowed, but the function was invoked with an absolute path $fullPath"
     }
     val gav = extractGav().getOrElse { return Result.failure(it) }
 
@@ -315,7 +315,7 @@ internal fun Path.extractArtifactInfo(fullPath: Path = this): Result<ArtifactInf
 
 private fun Path.illegalPathFormat(): IllegalArgumentException = IllegalArgumentException(
     "The artifact file has invalid path format: " +
-            "is has to contain at least 4 segments, but contained only ${iterator().asSequence().count()}: $this"
+            "it has to contain at least 4 segments, but contained only ${iterator().asSequence().count()}: $this"
 )
 
 private fun Path.extractGav(): Result<ArtifactInfo.Gav> {

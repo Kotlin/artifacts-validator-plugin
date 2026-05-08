@@ -208,7 +208,7 @@ public class ArtifactInfoExtractionTest {
         }.also {
             assertEquals(
                 "The artifact file has invalid path format: " +
-                        "is has to contain at least 4 segments, but contained only 3: " +
+                        "it has to contain at least 4 segments, but contained only 3: " +
                         "artifact-validator-plugin/0.0.1/artifact-validator-plugin-0.0.1.pom", it.message
             )
         }
@@ -218,7 +218,7 @@ public class ArtifactInfoExtractionTest {
         }.also {
             assertEquals(
                 "The artifact file has invalid path format: " +
-                        "is has to contain at least 4 segments, but contained only 2: " +
+                        "it has to contain at least 4 segments, but contained only 2: " +
                         "0.0.1/artifact-validator-plugin-0.0.1.pom", it.message
             )
         }
@@ -228,7 +228,7 @@ public class ArtifactInfoExtractionTest {
         }.also {
             assertEquals(
                 "The artifact file has invalid path format: " +
-                        "is has to contain at least 4 segments, but contained only 1: " +
+                        "it has to contain at least 4 segments, but contained only 1: " +
                         "artifact-validator-plugin-0.0.1.pom", it.message
             )
         }
@@ -242,7 +242,7 @@ public class ArtifactInfoExtractionTest {
             absolutePath.extractArtifactInfo()
         }.also {
             assertEquals(
-                "Only relative path are allowed, but the function was invoked an absolute path $absolutePath",
+                "Only relative paths are allowed, but the function was invoked with an absolute path $absolutePath",
                 it.message
             )
         }
