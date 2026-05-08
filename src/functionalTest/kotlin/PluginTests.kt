@@ -75,6 +75,36 @@ class PluginTests : PluginTestBase() {
     }
 
     @Test
+    fun dumpArtifactsForMultiplatformPublication() {
+        copyProject("/test-projects/multiplatform-publication")
+
+        run("dumpArtifacts") {
+            checkTaskStatus(":dumpArtifacts", TaskOutcome.SUCCESS)
+        }
+
+        assertEquals(
+            requireNotNull(
+                PluginTests::class.java.getResource(
+                    "/test-projects/artifacts/multiplatform/default/gradle/artifacts.txt"
+                )
+            ).readText(),
+            projectRoot.resolve("gradle/artifacts.txt").readText()
+        )
+    }
+
+    @Test
+    fun checkArtifactsForMultiplatformPublication() {
+        copyProjects(
+            "/test-projects/multiplatform-publication",
+            "/test-projects/artifacts/multiplatform/default",
+        )
+
+        run("checkArtifacts") {
+            checkTaskStatus(":checkArtifacts", TaskOutcome.SUCCESS)
+        }
+    }
+
+    @Test
     fun checkArtifactsUsingProjectSpecificRuleFiles() {
         copyProjects(
             "/test-projects/per-project-dumps",

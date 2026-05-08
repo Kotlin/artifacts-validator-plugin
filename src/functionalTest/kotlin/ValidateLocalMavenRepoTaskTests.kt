@@ -1,6 +1,7 @@
 package kotlinx.validation.test
 
 import org.gradle.testkit.runner.TaskOutcome
+import kotlin.test.Ignore
 import kotlin.test.Test
 
 class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
@@ -83,6 +84,25 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
             outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
+        }
+    }
+
+    @Test
+    @Ignore // issue with module files
+    fun validateForMultiplatformPublication() {
+        copyProjects(
+            "/test-projects/multiplatform-publication",
+            "/test-projects/artifacts/multiplatform/default",
+        )
+
+        run(
+            "publishAllPublicationsToTestRepository",
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+        ) {
+            checkTaskStatus(":publishAllPublicationsToTestRepository", TaskOutcome.SUCCESS)
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
         }
     }
 
