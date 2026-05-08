@@ -124,7 +124,7 @@ private fun ArtifactsValidatorPluginSettingsExtension.onSingleDumpFileConfigured
 
     val dumpFilePrefix = dumpFileNamePrefix.get()
     val defaultDumpFile = dumpFileRootDirectory.file("$dumpFilePrefix.txt").get().asFile
-    // Files have to reside withing the root project directory
+    // Files have to reside within the root project directory
     checkFileDoesNotEscapeRoot(projectRootDirectory, defaultDumpFile) {
         "Configured artifacts file is located outside of the root project' root directory. " +
                 "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory.get()}\") and " +
@@ -147,7 +147,7 @@ private fun ArtifactsValidatorPluginSettingsExtension.onPerProjectDumpFileConfig
 
     val dumpFilePrefix = dumpFileNamePrefix.get()
     val projectDumpFile = dumpFileRootDirectory.file("$dumpFilePrefix-${project.name}.txt").get().asFile
-    // Files have to reside withing the root project directory
+    // Files have to reside within the root project directory
     checkFileDoesNotEscapeRoot(projectRootDirectory, projectDumpFile) {
         "Configured artifacts file for project \"${project.name}\" (${project.path}) " +
                 "is located outside of the root project's root directory. " +

@@ -52,7 +52,7 @@ public abstract class ArtifactsValidationTaskBase : DefaultTask() {
 
     internal fun loadRules(file: File): List<ArtifactRule> {
         debug("Loading artifact rules from $file")
-        return file.readLines()
+        return file.readLines(Charsets.UTF_8)
             .filter { it.isNotBlank() && !it.startsWith("#") && !it.startsWith("//") }
             .flatMap {
                 try {
