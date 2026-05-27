@@ -14,8 +14,8 @@ internal class ArtifactInfoAsserter(val ai: ArtifactInfo) {
     fun hasGroupId(groupId: String) = assertEquals(groupId, ai.gav.groupId, "Unexpected group ID")
     fun hasArtifactId(artifactId: String) = assertEquals(artifactId, ai.gav.artifactId, "Unexpected artifactId ID")
 
-    fun hasBaseVersion(version: String) = assertEquals(version, ai.gav.version, "Unexpected version")
-    fun hasEffectiveVersion(version: String) = assertEquals(version, ai.actualVersion, "Unexpected version")
+    fun hasBaseVersion(version: String) = assertEquals(version, ai.gav.baseVersion, "Unexpected version")
+    fun hasEffectiveVersion(version: String) = assertEquals(version, ai.version, "Unexpected version")
 
     fun hasCoordinates(groupId: String, artifactId: String, version: String) {
         hasGroupId(groupId)

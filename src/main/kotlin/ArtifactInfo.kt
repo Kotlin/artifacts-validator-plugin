@@ -87,13 +87,15 @@ private fun Collection<ArtifactInfo>.groupArtifacts(
 
     // Group all ArtifactInfo corresponding to the same artifact together.
     // Note that for snapshot versions there might be multiple files which are resolved later.
-    val coordinatesToFiles = groupBy { "${it.gav.toCoordinates()}:${it.classifier}:${it.extension}" }
+    // Refer to https://maven.apache.org/repository/layout.html#snapshot for details on snapshot artifacts
+    // and their versions.
+    val coordinatesToInfo = groupBy { "${it.gav.toCoordinates()}:${it.classifier}:${it.extension}" }
 
     val artifacts: MutableMap<ArtifactInfo.Gav, MutableList<AugmentedArtifactInfo>> = mutableMapOf()
-    coordinatesToFiles.values.forEach { files ->
-        val gav = files.first().gav
-        val path = files.first().filePath
-        val mainArtifacts = files.filter { it.isActualArtifact() /* NB: others are signatures and checksums */ }
+    coordinatesToInfo.values.forEach { artifactInfos ->
+        val gav = artifactInfos.first().gav
+        val path = artifactInfos.first().filePath
+        val mainArtifacts = artifactInfos.filter { it.isActualArtifact() /* NB: others are signatures and checksums */ }
 
         if (mainArtifacts.isEmpty()) {
             onError(path, IllegalArgumentException(
@@ -120,9 +122,9 @@ private fun Collection<ArtifactInfo>.groupArtifacts(
         }
 
         val filesMatchingMainArtifactVersion = if (mainArtifact.isSnapshot) {
-            files.filter { it.actualVersion == mainArtifact.actualVersion }
+            artifactInfos.filter { it.version == mainArtifact.version }
         } else {
-            files
+            artifactInfos
         }
 
         val aai = AugmentedArtifactInfo(
@@ -140,7 +142,7 @@ private fun SnapshotResolutionStrategy.resolveSnapshot(files: List<ArtifactInfo>
     SnapshotResolutionStrategy.FAIL -> null
     SnapshotResolutionStrategy.LATEST_FILE -> files.maxByOrNull {
         // Snapshot version has the following format: <version>-<timestamp>-<counter>
-        val version = it.actualVersion
+        val version = it.version
         val idx = version.lastIndexOf('-')
         // Well, the version has an invalid format, but let's deal with it anyway
         if (idx < 0) return@maxByOrNull version
@@ -183,7 +185,6 @@ internal enum class SignatureType(val extension: String) {
  *
  * For snapshot artifacts, there might be two different yet connected versions: the version and the base version.
  * The former is extracted from a file name and the latter corresponds to a parent directory name.
- * For convenience, [ArtifactInfo.Gav.version] is a base version and [actualVersion] is just a version.
  */
 internal data class ArtifactInfo(
     val gav: Gav,
@@ -194,16 +195,16 @@ internal data class ArtifactInfo(
     val checksumType: ChecksumType? = null,
     val isSnapshot: Boolean,
     // This is the "version" in maven GAV terminology, while gav.version is a base version.
-    val actualVersion: String = gav.version
+    val version: String = gav.baseVersion
 ) {
     data class Gav(
         val groupId: String,
         val artifactId: String,
         // Unlike "true" maven GAV, this version is a base version.
         // For snapshots, it would be `1.0-SNAPSHOT` and not `1.0-20260206.101225-1`.
-        val version: String
+        val baseVersion: String
     ) {
-        fun toCoordinates(): String = "$groupId:$artifactId:$version"
+        fun toCoordinates(): String = "$groupId:$artifactId:$baseVersion"
     }
 
     val fileName: String
@@ -211,7 +212,7 @@ internal data class ArtifactInfo(
 
     fun toArtifactIdentifier(includeVersion: Boolean = true): String {
         val classifierStr = if (classifier.isEmpty()) "" else "-${classifier}"
-        val versionStr = if (includeVersion) "-${gav.version}" else ""
+        val versionStr = if (includeVersion) "-${gav.baseVersion}" else ""
         return "${gav.groupId}:${gav.artifactId}$versionStr$classifierStr.$extension"
     }
 }
@@ -247,25 +248,25 @@ internal fun Path.extractArtifactInfo(fullPath: Path = this): Result<ArtifactInf
     nameSuffix = nameSuffix.drop(gav.artifactId.length + 1)
 
     // Extract and validate version
-    val isSnapshot = gav.version.endsWith("-SNAPSHOT")
+    val isSnapshot = gav.baseVersion.endsWith("-SNAPSHOT")
     // For regular version, the filename has to contain the exact version.
     // For snapshot versions, the filename can either contain the same version, or ... (see the else branch)
-    val effectiveVersion = if (!isSnapshot || nameSuffix.startsWith(gav.version)) {
-        if (!nameSuffix.startsWith(gav.version)) return Result.failure(IllegalArgumentException(
+    val effectiveVersion = if (!isSnapshot || nameSuffix.startsWith(gav.baseVersion)) {
+        if (!nameSuffix.startsWith(gav.baseVersion)) return Result.failure(IllegalArgumentException(
             "Artifact ID in a filename does not contain a version, " +
                     "or the version does not match a version " +
-                    "extracted from a parent directory name (${gav.version}): $fullPath"
+                    "extracted from a parent directory name (${gav.baseVersion}): $fullPath"
         ))
-        nameSuffix = nameSuffix.drop(gav.version.length)
-        gav.version
+        nameSuffix = nameSuffix.drop(gav.baseVersion.length)
+        gav.baseVersion
     } else {
         // ... or the version in the filename has to follow pattern "XXX-YYYYMMDD.HHmmSS-<counter>",
         // where XXX should match the substring before the "-SNAPSHOT" and the counter is an integer value.
-        val versionPrefix = gav.version.dropLast(8 /* "SNAPSHOT".length */)
+        val versionPrefix = gav.baseVersion.dropLast(8 /* "SNAPSHOT".length */)
 
         val re = Regex("(${Regex.escape(versionPrefix)}[0-9]{8}\\.[0-9]{6}-[0-9]+).+")
         val match = re.matchEntire(nameSuffix) ?: return Result.failure(IllegalArgumentException(
-            "Invalid snapshot version format in filename: it should be either ${gav.version} or " +
+            "Invalid snapshot version format in filename: it should be either ${gav.baseVersion} or " +
                     "match the pattern ${versionPrefix}YYYYMMDD.HHMMSS-N: $fullPath"
         ))
         match.groupValues[1].also {

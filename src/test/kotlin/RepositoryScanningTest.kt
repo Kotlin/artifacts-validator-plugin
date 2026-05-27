@@ -85,7 +85,7 @@ class RepositoryScanningTest {
 
         assertEquals(3, artifacts.size)
 
-        artifacts.find { it.gav.artifactId == "kotlinx-io-core" && it.gav.version == "0.8.0" }!!.let { artifact ->
+        artifacts.find { it.gav.artifactId == "kotlinx-io-core" && it.gav.baseVersion == "0.8.0" }!!.let { artifact ->
             assertEquals(
                 ArtifactInfo.Gav("org.jetbrains.kotlinx", "kotlinx-io-core", "0.8.0"),
                 artifact.gav
@@ -98,7 +98,7 @@ class RepositoryScanningTest {
             pomFile.artifact.assertBasicArtifact("org.jetbrains.kotlinx", "kotlinx-io-core", "0.8.0", "pom")
         }
 
-        artifacts.find { it.gav.artifactId == "kotlinx-io-core" && it.gav.version == "0.8.1" }!!.let { artifact ->
+        artifacts.find { it.gav.artifactId == "kotlinx-io-core" && it.gav.baseVersion == "0.8.1" }!!.let { artifact ->
             assertEquals(
                 ArtifactInfo.Gav("org.jetbrains.kotlinx", "kotlinx-io-core", "0.8.1"),
                 artifact.gav

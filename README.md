@@ -36,7 +36,7 @@ The plugin registers these root-project tasks:
 
 - `checkArtifacts`: validates current `maven-publish` publications against artifact rule files.
 - `dumpArtifacts`: generates artifact dump files from current `maven-publish` publications.
-- `validateLocalMavenRepo`: validates a local Maven repository against rule files.
+- `validateLocalMavenRepo`: validates an arbitrary local Maven repository against rule files.
 
 The root `check` task depends on `checkArtifacts`.
 
@@ -76,7 +76,7 @@ When `usePerProjectDumps` is `true`, the plugin uses:
 2. Configure your publications with `maven-publish`.
 3. Generate expected artifact dumps with `./gradlew dumpArtifacts`.
 4. Commit the generated dump files.
-5. Run `./gradlew check` or `./gradlew checkArtifacts` to ensure publications still match.
+5. Run `./gradlew :check` or `./gradlew checkArtifacts` to ensure publications still match.
 
 ## Using `checkArtifacts`
 

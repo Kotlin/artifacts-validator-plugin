@@ -30,7 +30,7 @@ publishing {
             pom {
                 name = project.name
                 description = "Maven artifacts validator plugin"
-                url = "https://github.com/Kotlin/" // TBD
+                url = "https://github.com/Kotlin/artifacts-validator-plugin"
 
                 licenses {
                     license {
@@ -50,7 +50,7 @@ publishing {
                 }
 
                 scm {
-                    url = "https://github.com/Kotlin/" // TBD
+                    url = "https://github.com/Kotlin/artifacts-validator-plugin"
                 }
             }
         }

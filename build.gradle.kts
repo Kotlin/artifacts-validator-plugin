@@ -71,8 +71,8 @@ testing {
 }
 
 gradlePlugin {
-    website = "https://github.com/Kotlin/" // TBD
-    vcsUrl = "https://github.com/Kotlin/" // TBD
+    website = "https://github.com/Kotlin/artifacts-validator-plugin"
+    vcsUrl = "https://github.com/Kotlin/artifacts-validator-plugin"
 
     plugins.configureEach {
         tags.addAll("maven", "maven-publish", "artifacts", "check")
