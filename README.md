@@ -84,23 +84,8 @@ When `usePerProjectDumps` is `true`, the plugin uses:
 
 Example:
 
-```kotlin
-plugins {
-    base
-    `maven-publish`
-}
-
-group = "org.jetbrains.kotlinx"
-version = "0.0.1"
-
-publishing {
-    publications {
-        create<MavenPublication>("main") {
-            artifact(tasks.register<Jar>("publishedJar"))
-        }
-    }
-}
-```
+Configure Maven publications using [maven-publish](https://docs.gradle.org/current/userguide/publishing_maven.html)
+plugin.
 
 Then run:
 
