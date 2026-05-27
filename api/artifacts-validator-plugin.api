@@ -59,7 +59,7 @@ public abstract class kotlinx/validation/ValidateLocalMavenRepositoryTask : kotl
 	public static final field TASK_NAME Ljava/lang/String;
 	public fun <init> ()V
 	public final fun artifactsListOption (Ljava/util/List;)V
-	public abstract fun getArtifactRuleFiles ()Lorg/gradle/api/provider/MapProperty;
+	public abstract fun getArtifactsList ()Lorg/gradle/api/provider/MapProperty;
 	public abstract fun getArtifactsRepositoryDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getArtifactsRepositoryZip ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getRequireChecksums ()Lorg/gradle/api/provider/SetProperty;

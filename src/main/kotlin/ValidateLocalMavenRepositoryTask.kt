@@ -17,7 +17,7 @@ import java.util.TreeSet
 /**
  * Checks that all artifacts from a Maven 2 repository pointed by [artifactsRepositoryDir]
  * or [artifactsRepositoryZip]
- * matches expected artifacts described using rules from [artifactRuleFiles], that there are no unexpected
+ * matches expected artifacts described using rules from [artifactsList], that there are no unexpected
  * artifacts and that there are no missing artifacts, and all artifacts have an appropriate version. When configured
  * using [requireSignatures] and [requireChecksums], the task also check signature and checksum files
  * correspondingly.
@@ -57,10 +57,10 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
      * an expected version artifacts corresponding to these rules.
      */
     @get:Input
-    public abstract val artifactRuleFiles: MapProperty<File, String>
+    public abstract val artifactsList: MapProperty<File, String>
 
     /**
-     * Command line option parser for [artifactRuleFiles]. Overrides all values specified in [artifactRuleFiles].
+     * Command line option parser for [artifactsList]. Overrides all values specified in [artifactsList].
      */
     @Option(
         option = "artifacts-list",
@@ -77,14 +77,8 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
             }
             val file = File(fileAndVersion.substring(0, delimiterIndex))
             val version = fileAndVersion.substring(delimiterIndex + 1)
-            cliArtifactLists[file] = version
+            artifactsList.put(file, version)
         }
-    }
-
-    private val cliArtifactLists: MutableMap<File, String> = mutableMapOf()
-
-    private fun finalArtifactsLists(): Map<File, String> = cliArtifactLists.ifEmpty {
-        artifactRuleFiles.getOrElse(emptyMap())
     }
 
     /**
@@ -199,7 +193,7 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
         val fileToRules = mutableMapOf<File, List<ArtifactRule>>()
         var hasErrors = false
 
-        finalArtifactsLists().forEach { (file, _) ->
+        artifactsList.getOrElse(emptyMap()).forEach { (file, _) ->
             if (!file.exists()) {
                 error("Artifacts list file does not exist: $file")
                 hasErrors = true
@@ -217,7 +211,7 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
 
     private fun compareArtifacts(rules: Map<File, List<ArtifactRule>>, artifacts: List<AggregatedArtifactInfo>) {
         val expectedArtifacts = rules.flatMapTo(TreeSet<String>()) { (file, fileRules) ->
-            val version = finalArtifactsLists().getValue(file)
+            val version =  artifactsList.getOrElse(emptyMap()).getValue(file)
             fileRules.map { it.toArtifactIdentifier(version) }
         }
         val actualArtifacts = artifacts.flatMapTo(TreeSet<String>()) {
