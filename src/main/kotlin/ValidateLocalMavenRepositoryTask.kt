@@ -1,68 +1,18 @@
 package kotlinx.validation
 
-import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
-import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.provider.*
+import org.gradle.api.provider.MapProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.*
-import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.options.Option
 import org.gradle.work.DisableCachingByDefault
 import java.io.File
 import java.net.URI
 import java.nio.file.FileSystems
-import java.nio.file.Paths
-import java.util.*
-
-public abstract class ArtifactsValidationTaskBase : DefaultTask() {
-    private val logMessagePrefix = "[Artifacts Validation] "
-    internal fun error(message: String) = logger.error("$logMessagePrefix$message")
-    internal fun warn(message: String) = logger.warn("$logMessagePrefix$message")
-    internal fun debug(message: String) = logger.debug("$logMessagePrefix$message")
-    internal fun lifecycle(message: String) = logger.lifecycle("$logMessagePrefix$message")
-
-    internal fun compareArtifactsImpl(expectedArtifacts: SortedSet<String>, actualArtifacts: SortedSet<String>) {
-        if (expectedArtifacts == actualArtifacts) {
-            lifecycle("Artifacts fully matched the list of expected artifacts.")
-            return
-        }
-
-        val missingArtifacts = expectedArtifacts.subtract(actualArtifacts)
-        if (missingArtifacts.isNotEmpty()) {
-            error(
-                "Following artifacts were expected, but were not found: "
-                        + missingArtifacts.joinToString(", ")
-            )
-        }
-        val extraArtifacts = actualArtifacts.subtract(expectedArtifacts)
-        if (extraArtifacts.isNotEmpty()) {
-            error(
-                "Following artifacts were not expected, but were found: "
-                        + extraArtifacts.joinToString(", ")
-            )
-        }
-
-        throw GradleException(
-            "List of found artifacts does not match list of expected artifacts. See log for more details. " +
-                    "To generate or update files describing artifacts, run the '${PublicationArtifactsDumpTask.TASK_NAME}' task."
-        )
-    }
-
-    internal fun loadRules(file: File): List<ArtifactRule> {
-        debug("Loading artifact rules from $file")
-        return file.readLines(Charsets.UTF_8)
-            .filter { it.isNotBlank() && !it.startsWith("#") && !it.startsWith("//") }
-            .flatMap {
-                try {
-                    ArtifactRule.parseRule(it)
-                } catch (e: IllegalArgumentException) {
-                    throw GradleException("Error while parsing rules file $file: ${e.message}")
-                }
-            }
-    }
-}
+import java.util.TreeSet
 
 /**
  * Checks that all artifacts from a Maven 2 repository pointed by [artifactsRepositoryDir]
@@ -315,117 +265,4 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
     public companion object {
         public const val TASK_NAME: String = "validateLocalMavenRepo"
     }
-}
-
-/**
- * Checks that all artifacts from [publications] matches expected artifacts
- * described using rules from [artifactRuleFiles], that there are no unexpected
- * artifacts and that there are no missing artifacts.
- *
- * This task checks only the list of artifacts and does not verify any additional attributes.
- */
-@DisableCachingByDefault
-public abstract class PublicationArtifactsValidationTask : ArtifactsValidationTaskBase() {
-    @get:InputFiles
-    public abstract val artifactRuleFiles: ConfigurableFileCollection
-
-    @get:Input
-    public abstract val publications: ListProperty<PublicationDescriptor>
-
-    @TaskAction
-    public fun validate() {
-        val dumpFiles = artifactRuleFiles.files.filter { it.exists() }
-
-        val rules = dumpFiles.flatMap(::loadRules)
-
-        compareArtifactsImpl(
-            rules.mapTo(TreeSet()) { it.toArtifactIdentifier(null) },
-            publications.get().flatMapTo(TreeSet()) { it.toArtifactIdentifiers() }
-        )
-    }
-
-    public companion object {
-        public const val TASK_NAME: String = "checkArtifacts"
-    }
-}
-
-/**
- * Dumps [rules](ArtifactRule) describing artifacts from [publications]
- * into either a single [sharedRulesFile] file, or one of the [perProjectRuleFiles],
- * where the project is chosen using [PublicationDescriptor.projectPath].
- *
- * Either [sharedRulesFile] or [perProjectRuleFiles] should be configured,
- * it's an error to configure them both simultaneously.
- */
-@DisableCachingByDefault
-public abstract class PublicationArtifactsDumpTask : DefaultTask() {
-    @get:Input
-    public abstract val publications: ListProperty<PublicationDescriptor>
-
-    @get:OutputFile
-    @get:Optional
-    public abstract val sharedRulesFile: RegularFileProperty
-
-    @get:OutputFiles
-    public abstract val perProjectRuleFiles: MapProperty<String, File>
-
-    @TaskAction
-    public fun dump() {
-        val project2publication = publications.get().groupBy { it.projectPath }
-
-        check(!(sharedRulesFile.isPresent && perProjectRuleFiles.get().isNotEmpty())) {
-            "Either sharedRulesFile, or perProjectRuleFiles should be configured, but not both"
-        }
-
-        val file2publications = mutableMapOf<File, MutableList<PublicationDescriptor>>()
-
-        for ((project, publications) in project2publication) {
-            val file = if (sharedRulesFile.isPresent) {
-                sharedRulesFile.get().asFile
-            } else {
-                val projectDump = perProjectRuleFiles.get()[project]
-                check(projectDump != null) {
-                    "Dump was not configured for project $project"
-                }
-                projectDump
-            }
-            file2publications.getOrPut(file) { mutableListOf() }.addAll(publications)
-        }
-
-        for ((dumpFile, publications) in file2publications) {
-            dumpFile.bufferedWriter(Charsets.UTF_8).use { writer ->
-                publications.map { it.toRules() }.sorted().forEach {
-                    writer.appendLine(it)
-                }
-            }
-        }
-    }
-
-    public companion object {
-        public const val TASK_NAME: String = "dumpArtifacts"
-    }
-}
-
-private fun PublicationDescriptor.toArtifactIdentifiers(): List<String> {
-    return artifacts.map {
-        val info = ArtifactInfo(
-            ArtifactInfo.Gav(groupId, artifactId, version),
-            Paths.get(""),
-            it.extension,
-            it.classifier,
-            null,
-            null,
-            version.contains("SNAPSHOT")
-        )
-        info.toArtifactIdentifier(false)
-    }
-}
-
-private fun PublicationDescriptor.toRules(): String {
-    val ga = "${groupId}:${artifactId}"
-    val classifierAndExtension = artifacts
-        .map { "${it.classifier}.${it.extension}" }
-        .sorted()
-        .joinToString(",")
-    return "$ga/$classifierAndExtension"
 }
