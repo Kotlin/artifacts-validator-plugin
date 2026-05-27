@@ -54,12 +54,18 @@ public final class kotlinx/validation/PublicationDescriptor$ArtifactDescriptor :
 	public final fun getExtension ()Ljava/lang/String;
 }
 
+public final class kotlinx/validation/RuleFileWithVersion : java/io/Serializable {
+	public fun <init> (Lorg/gradle/api/file/RegularFileProperty;Ljava/lang/String;)V
+	public final fun getFile ()Lorg/gradle/api/file/RegularFileProperty;
+	public final fun getVersion ()Ljava/lang/String;
+}
+
 public abstract class kotlinx/validation/ValidateLocalMavenRepositoryTask : kotlinx/validation/ArtifactsValidationTaskBase {
 	public static final field Companion Lkotlinx/validation/ValidateLocalMavenRepositoryTask$Companion;
 	public static final field TASK_NAME Ljava/lang/String;
 	public fun <init> ()V
 	public final fun artifactsListOption (Ljava/util/List;)V
-	public abstract fun getArtifactsList ()Lorg/gradle/api/provider/MapProperty;
+	public abstract fun getArtifactsList ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getArtifactsRepositoryDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getArtifactsRepositoryZip ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getRequireChecksums ()Lorg/gradle/api/provider/SetProperty;

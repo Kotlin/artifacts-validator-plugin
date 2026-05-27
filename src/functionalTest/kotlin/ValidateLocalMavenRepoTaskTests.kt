@@ -344,9 +344,8 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             "--artifacts-list=${projectRoot.resolve("gradle/missing-artifacts.txt")}:0.0.1"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
-            outputContains("Artifacts list file does not exist:")
-            outputContains("missing-artifacts.txt")
-            outputContains("Failed to load rules file from files. See log for more details.")
+            outputContains("An input file was expected to be present but it doesn't exist.")
+            outputContains("missing-artifacts.txt' which doesn't exist.")
         }
     }
 }

@@ -3,15 +3,17 @@ package kotlinx.validation
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.provider.MapProperty
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.*
 import org.gradle.api.tasks.options.Option
 import org.gradle.work.DisableCachingByDefault
 import java.io.File
+import java.io.Serializable
 import java.net.URI
 import java.nio.file.FileSystems
+import java.util.SortedSet
 import java.util.TreeSet
 
 /**
@@ -56,8 +58,8 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
      * Lists of rules describing expected artifacts associated with
      * an expected version artifacts corresponding to these rules.
      */
-    @get:Input
-    public abstract val artifactsList: MapProperty<File, String>
+    @get:Nested
+    public abstract val artifactsList: ListProperty<RuleFileWithVersion>
 
     /**
      * Command line option parser for [artifactsList]. Overrides all values specified in [artifactsList].
@@ -77,7 +79,8 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
             }
             val file = File(fileAndVersion.substring(0, delimiterIndex))
             val version = fileAndVersion.substring(delimiterIndex + 1)
-            artifactsList.put(file, version)
+            val fileProperty = project.objects.fileProperty().also { it.set(file) }
+            artifactsList.add(RuleFileWithVersion(fileProperty, version))
         }
     }
 
@@ -125,8 +128,7 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
         val checksums = parseChecksumTypes()
         val artifacts = loadArtifacts()
 
-        val rules = loadRules()
-        compareArtifacts(rules, artifacts)
+        compareArtifacts(loadExpectedArtifactsList(), artifacts)
 
         validateAttributes(artifacts, requireSignatures.getOrElse(false), checksums)
     }
@@ -189,31 +191,19 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
         return artifacts
     }
 
-    private fun loadRules(): Map<File, List<ArtifactRule>> {
-        val fileToRules = mutableMapOf<File, List<ArtifactRule>>()
-        var hasErrors = false
+    private fun loadExpectedArtifactsList(): SortedSet<String> {
+        val expectedArtifacts = sortedSetOf<String>()
 
-        artifactsList.getOrElse(emptyMap()).forEach { (file, _) ->
-            if (!file.exists()) {
-                error("Artifacts list file does not exist: $file")
-                hasErrors = true
-                return@forEach
-            }
-            fileToRules[file] = loadRules(file)
+        artifactsList.getOrElse(emptyList()).forEach {
+            val file = it.file.asFile.get()
+            val version = it.version
+            expectedArtifacts.addAll(loadRules(file).map { it.toArtifactIdentifier(version) })
         }
 
-        if (hasErrors) {
-            throw GradleException("Failed to load rules file from files. See log for more details.")
-        }
-
-        return fileToRules
+        return expectedArtifacts
     }
 
-    private fun compareArtifacts(rules: Map<File, List<ArtifactRule>>, artifacts: List<AggregatedArtifactInfo>) {
-        val expectedArtifacts = rules.flatMapTo(TreeSet<String>()) { (file, fileRules) ->
-            val version =  artifactsList.getOrElse(emptyMap()).getValue(file)
-            fileRules.map { it.toArtifactIdentifier(version) }
-        }
+    private fun compareArtifacts(expectedArtifacts: SortedSet<String>, artifacts: List<AggregatedArtifactInfo>) {
         val actualArtifacts = artifacts.flatMapTo(TreeSet<String>()) {
             it.artifacts.map { it.artifact.toArtifactIdentifier() }
         }
@@ -260,3 +250,8 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
         public const val TASK_NAME: String = "validateLocalMavenRepo"
     }
 }
+
+public class RuleFileWithVersion(
+    @get:InputFile public val file: RegularFileProperty,
+    @get:Input public val version: String
+) : Serializable
