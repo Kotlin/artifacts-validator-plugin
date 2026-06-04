@@ -203,12 +203,15 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
             val filesOrDirectories = it.files.files
             val version = it.version
             filesOrDirectories.forEach { fileOrDirectory ->
-                val files = if (fileOrDirectory.isDirectory) {
+                val files = if (fileOrDirectory.exists() && fileOrDirectory.isDirectory) {
                     fileOrDirectory.listFiles()
                 } else {
                     arrayOf(fileOrDirectory)
                 }
                 files.forEach { file ->
+                    if (!file.exists()) {
+                        error("Artifacts list file does not exist: $file")
+                    }
                     expectedArtifacts.addAll(loadRules(file).map { it.toArtifactIdentifier(version) })
                 }
             }

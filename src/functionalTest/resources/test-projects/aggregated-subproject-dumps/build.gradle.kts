@@ -1,6 +1,5 @@
 plugins {
     base
-    `maven-publish`
 }
 
 group = "org.jetbrains.kotlinx"

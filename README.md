@@ -55,7 +55,7 @@ artifactsValidation {
 Supported properties:
 
 - `dumpFileNamePrefix`: file name prefix for generated and validated dump files. Default: `artifacts`
-- `dumpFileRootDirectory`: directory where dump files are stored. Default: `gradle`
+- `dumpFileRootDirectory`: directory where dump files are stored. Default: `artifacts`
 - `aggregationEnabled`: when `false`, use a single dump file; when `true`, use one dump file per project. Default: `false`
 
 When `aggregationEnabled` is `false`, the plugin uses:

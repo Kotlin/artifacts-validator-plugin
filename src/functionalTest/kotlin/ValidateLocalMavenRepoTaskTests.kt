@@ -15,7 +15,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             "publishTestPublicationToTestRepository",
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts-basic-test-project.txt")}:0.0.1"
         ) {
             checkTaskStatus(":publishTestPublicationToTestRepository", TaskOutcome.SUCCESS)
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
@@ -37,7 +37,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             "publishTestPublicationToTestRepository",
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts-basic-test-project.txt")}:0.0.1"
         ) {
             checkTaskStatus(":publishTestPublicationToTestRepository", TaskOutcome.SUCCESS)
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
@@ -59,7 +59,26 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             "publishTestPublicationToTestRepository",
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts-basic-test-project.txt")}:0.0.1"
+        ) {
+            checkTaskStatus(":publishTestPublicationToTestRepository", TaskOutcome.SUCCESS)
+            checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
+            outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
+        }
+    }
+
+    @Test
+    fun readListFromDirectory() {
+        copyProjects(
+            "/test-projects/publication-with-sources",
+            "/test-projects/artifacts/publication/with-sources",
+        )
+
+        run(
+            "publishTestPublicationToTestRepository",
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-list=${projectRoot.resolve("artifacts")}:0.0.1"
         ) {
             checkTaskStatus(":publishTestPublicationToTestRepository", TaskOutcome.SUCCESS)
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
@@ -78,8 +97,8 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
         run(
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts-core.txt")}:0.0.1",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts-ext.txt")}:2025a-0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts-core.txt")}:0.0.1",
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts-ext.txt")}:2025a-0.0.1"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
             outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
@@ -97,7 +116,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             "publishAllPublicationsToTestRepository",
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts-multiplatform-test-project.txt")}:0.0.1"
         ) {
             checkTaskStatus(":publishAllPublicationsToTestRepository", TaskOutcome.SUCCESS)
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
@@ -117,7 +136,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
         run(
             "validateLocalMavenRepo",
             "--artifacts-zip=${projectRoot.resolve("build/test-repo.zip")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts.txt")}:0.0.1"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
             outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
@@ -133,7 +152,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
 
         runAndFail(
             "validateLocalMavenRepo",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts.txt")}:0.0.1"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
             outputContains("Artifact source is not configured. Use either --artifacts-dir or --artifacts-zip.")
@@ -152,7 +171,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
         runAndFail(
             "validateLocalMavenRepo",
             "--artifacts-zip=${projectRoot.resolve("build/test-repo.zip")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts.txt")}:0.0.1"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
             outputContains("Error detected while reading file")
@@ -172,7 +191,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
         run(
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1",
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts.txt")}:0.0.1",
             "--require-signatures",
             "--require-checksums=md5, Sha256"
         ) {
@@ -193,7 +212,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
         runAndFail(
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1",
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts.txt")}:0.0.1",
             "--require-signatures",
             "--require-checksums=md5,sha1"
         ) {
@@ -216,7 +235,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
         runAndFail(
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1",
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts.txt")}:0.0.1",
             "--require-signatures"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
@@ -236,7 +255,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
         runAndFail(
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1",
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts.txt")}:0.0.1",
             "--require-checksums=md5,sha999"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
@@ -264,11 +283,11 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
         runAndFail(
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}"
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts.txt")}"
         ) {
             outputContains(
                 "artifacts-list value must use the format <file>:<version>, was: " +
-                        "\"${projectRoot.resolve("gradle/artifacts.txt")}\"."
+                        "\"${projectRoot.resolve("artifacts/artifacts.txt")}\"."
             )
         }
     }
@@ -284,7 +303,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
         runAndFail(
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts.txt")}:0.0.1"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
             outputContains("There are checksum and/or signature files corresponding to an artifact, but the main artifact file does not exist:")
@@ -305,7 +324,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
             "--artifacts-zip=${projectRoot.resolve("build/test-repo.zip")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts.txt")}:0.0.1"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
             outputContains("Only one artifact source can be configured. Use either --artifacts-dir or --artifacts-zip.")
@@ -323,7 +342,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
         runAndFail(
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/artifacts.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts.txt")}:0.0.1"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
             outputContains("Error while parsing rules file")
@@ -341,11 +360,11 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
         runAndFail(
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("gradle/missing-artifacts.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/missing-artifacts.txt")}:0.0.1"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
-            outputContains("An input file was expected to be present but it doesn't exist.")
-            outputContains("missing-artifacts.txt' which doesn't exist.")
+            outputContains("Artifacts list file does not exist:")
+            outputContains("missing-artifacts.txt")
         }
     }
 }

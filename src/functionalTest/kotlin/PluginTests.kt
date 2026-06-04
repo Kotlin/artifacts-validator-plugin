@@ -52,12 +52,12 @@ class PluginTests : PluginTestBase() {
 
         assertEquals(
             "org.jetbrains.kotlinx:basic-test-project/.jar,.pom,sources.jar\n",
-            projectRoot.resolve("gradle/artifacts.txt").readText()
+            projectRoot.resolve("artifacts/artifacts-basic-test-project.txt").readText()
         )
     }
 
     @Test
-    fun dumpArtifactsToProjectSpecificRuleFiles() {
+    fun dumpArtifactsForMultiModuleProject() {
         copyProject("/test-projects/per-project-dumps")
 
         run("dumpArtifacts") {
@@ -66,16 +66,16 @@ class PluginTests : PluginTestBase() {
 
         assertEquals(
             "org.jetbrains.kotlinx:lib/.jar,.pom\n",
-            projectRoot.resolve("gradle/artifacts-lib.txt").readText()
+            projectRoot.resolve("artifacts/artifacts-lib.txt").readText()
         )
         assertEquals(
             "org.jetbrains.kotlinx:ext/.jar,.pom\n",
-            projectRoot.resolve("gradle/artifacts-ext.txt").readText()
+            projectRoot.resolve("artifacts/artifacts-ext.txt").readText()
         )
     }
 
     @Test
-    fun dumpArtifactsForMultiplatformPublication() {
+    fun checkArtifactsForMultiModuleProject() {
         copyProject("/test-projects/multiplatform-publication")
 
         run("dumpArtifacts") {
@@ -85,10 +85,10 @@ class PluginTests : PluginTestBase() {
         assertEquals(
             requireNotNull(
                 PluginTests::class.java.getResource(
-                    "/test-projects/artifacts/multiplatform/default/gradle/artifacts.txt"
+                    "/test-projects/artifacts/multiplatform/default/artifacts/artifacts-multiplatform-test-project.txt"
                 )
             ).readText(),
-            projectRoot.resolve("gradle/artifacts.txt").readText()
+            projectRoot.resolve("artifacts/artifacts-multiplatform-test-project.txt").readText()
         )
     }
 
