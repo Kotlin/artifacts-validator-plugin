@@ -6,7 +6,6 @@ import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFile
 import org.gradle.api.initialization.Settings
-import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
@@ -53,30 +52,10 @@ private fun Project.registerExtension(): ArtifactsValidatorPluginSettingsExtensi
 }
 
 private fun Project.configureAnyProject(extension: ArtifactsValidatorPluginSettingsExtension) {
-    val extractArtifactsTask = tasks.register(CollectArtifactsTask.TASK_NAME, CollectArtifactsTask::class.java) {
-        it.dumpFile.set(layout.buildDirectory.file("artifacts/dump.txt"))
-
-        it.description = "Collects information about all artifacts associated with project's Maven publications"
-        it.group = LifecycleBasePlugin.VERIFICATION_GROUP
-    }
-
-    project.pluginManager.withPlugin("maven-publish") {
-        val publishing = project.extensions.getByType(PublishingExtension::class.java)
-        // Discover all publications and register them in dump and check tasks
-        publishing.publications.withType(MavenPublication::class.java).configureEach { publication ->
-            val descriptors = project.providers.provider {
-                publication.toArtifactDescriptors(project.path)
-            }
-            extractArtifactsTask.configure { it.artifacts.addAll(descriptors) }
-        }
-    }
-
     val publishedDumpFile = extension.perProjectDumpFile(this)
-    val generatedArtifacts = extractArtifactsTask.flatMap { it.dumpFile }
 
-    tasks.register(GenerateRuleFileTask.TASK_NAME, GenerateRuleFileTask::class.java) {
-        it.artifactsFile.set(generatedArtifacts)
-        it.rulesFile.set(publishedDumpFile)
+    val dumpTask = tasks.register(PublicationArtifactsDumpTask.TASK_NAME, PublicationArtifactsDumpTask::class.java) {
+        it.dumpFile.set(publishedDumpFile)
 
         it.description = "Dump list of all artifacts associated with project's Maven publications"
         it.group = LifecycleBasePlugin.VERIFICATION_GROUP
@@ -84,12 +63,24 @@ private fun Project.configureAnyProject(extension: ArtifactsValidatorPluginSetti
 
     val checkTask = tasks.register(PublicationArtifactsValidationTask.TASK_NAME, PublicationArtifactsValidationTask::class.java) {
         it.artifactRuleFiles.from(publishedDumpFile)
-        it.publishedArtifactLists.from(generatedArtifacts)
 
         it.description =
             "Validate all artifacts associated with project's Maven publications match the expected list of artifacts"
         it.group = LifecycleBasePlugin.VERIFICATION_GROUP
     }
+
+    project.pluginManager.withPlugin("maven-publish") {
+        val publishing = project.extensions.getByType(PublishingExtension::class.java)
+        // Discover all publications and register them in dump and check tasks
+        publishing.publications.withType(MavenPublication::class.java).configureEach { publication ->
+            val descriptor = providers.provider {
+                PublicationDescriptor.from(project.path, publication)
+            }
+            checkTask.configure { it.publications.add(descriptor) }
+            dumpTask.configure { it.publications.add(descriptor) }
+        }
+    }
+
     tasks.matching {
         it.name == LifecycleBasePlugin.CHECK_TASK_NAME
     }.configureEach {

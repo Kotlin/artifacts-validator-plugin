@@ -35,7 +35,7 @@ internal abstract class ArtifactsValidationTaskBase : DefaultTask() {
 
         throw GradleException(
             "List of found artifacts does not match list of expected artifacts. See log for more details. " +
-                    "To generate or update files describing artifacts, run the '${CollectArtifactsTask.TASK_NAME}' task."
+                    "To generate or update files describing artifacts, run the '${PublicationArtifactsDumpTask.TASK_NAME}' task."
         )
     }
 

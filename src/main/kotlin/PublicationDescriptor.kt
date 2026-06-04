@@ -3,59 +3,67 @@ package kotlinx.validation
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.internal.publication.MavenPublicationInternal
 import java.io.Serializable
+import java.nio.file.Paths
 
 /**
  * Describes artifacts from [org.gradle.api.publish.maven.MavenArtifact]s
  * associated with a particular [MavenPublication].
  */
-internal class ArtifactDescriptor(
+internal class PublicationDescriptor(
     public val projectPath: String,
     public val groupId: String,
     public val artifactId: String,
     public val version: String,
-    public val classifier: String,
-    public val extension: String
+    public val artifacts: List<ArtifactDescriptor>
 ) : Serializable {
-    internal companion object {
-        private const val DELIMITER = "\u00b6" // ¶
+    public class ArtifactDescriptor(
+        public val classifier: String,
+        public val extension: String
+    ) : Serializable
 
-        fun parse(line: String): ArtifactDescriptor {
-            val parts = line.split(DELIMITER)
-            require(parts.size == 6) {
-                "Wrong artifact descriptor format, 6 parts delimited by $DELIMITER are expected:\n$line"
+    internal companion object {
+        internal fun from(projectPath: String, mavenPublication: MavenPublication): PublicationDescriptor {
+            val artifacts = if (mavenPublication is MavenPublicationInternal) {
+                // Internal publication contains all artifacts that are actually published,
+                // include pom and module files. MavenPublication.artifacts does not contain them.
+                mavenPublication.asNormalisedPublication().allArtifacts
+            } else {
+                mavenPublication.artifacts
             }
-            return ArtifactDescriptor(
-                parts[0],
-                parts[1],
-                parts[2],
-                parts[3],
-                parts[4],
-                parts[5]
+            val artifactDescriptors = artifacts.map {
+                ArtifactDescriptor(it.classifier ?: "", it.extension)
+            }
+            return PublicationDescriptor(
+                projectPath,
+                mavenPublication.groupId,
+                mavenPublication.artifactId,
+                mavenPublication.version,
+                artifactDescriptors
             )
         }
     }
 
-    internal fun serializeTo(to: Appendable) {
-        to.appendLine(
-            "$projectPath$DELIMITER" +
-                    "$groupId$DELIMITER" +
-                    "$artifactId$DELIMITER" +
-                    "$version$DELIMITER" +
-                    "$classifier$DELIMITER" +
-                    "$extension"
-        )
+    fun toArtifactIdentifiers(): List<String> {
+        return artifacts.map {
+            val info = ArtifactInfo(
+                ArtifactInfo.Gav(groupId, artifactId, version),
+                Paths.get(""),
+                it.extension,
+                it.classifier,
+                null,
+                null,
+                version.contains("SNAPSHOT")
+            )
+            info.toArtifactIdentifier(false)
+        }
     }
-}
 
-internal fun MavenPublication.toArtifactDescriptors(projectPath: String): List<ArtifactDescriptor> {
-    val artifacts = if (this is MavenPublicationInternal) {
-        // Internal publication contains all artifacts that are actually published,
-        // include pom and module files. MavenPublication.artifacts does not contain them.
-        this.asNormalisedPublication().allArtifacts
-    } else {
-        this.artifacts
-    }
-    return artifacts.map {
-        ArtifactDescriptor(projectPath, groupId, artifactId, version, it.classifier ?: "", it.extension)
+    fun toRules(): String {
+        val ga = "${groupId}:${artifactId}"
+        val classifierAndExtension = artifacts
+            .map { "${it.classifier}.${it.extension}" }
+            .sorted()
+            .joinToString(",")
+        return "$ga/$classifierAndExtension"
     }
 }

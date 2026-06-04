@@ -22,8 +22,8 @@ internal abstract class PublicationArtifactsValidationTask : ArtifactsValidation
     @get:InputFiles
     public abstract val artifactRuleFiles: ConfigurableFileCollection
 
-    @get:InputFiles
-    public abstract val publishedArtifactLists: ConfigurableFileCollection
+    @get:Input
+    public abstract val publications: ListProperty<PublicationDescriptor>
 
     @TaskAction
     public fun validate() {
@@ -31,11 +31,7 @@ internal abstract class PublicationArtifactsValidationTask : ArtifactsValidation
 
         val rules = dumpFiles.flatMap(::loadRules)
 
-        val artifacts = publishedArtifactLists.files.flatMapTo(TreeSet<String>()) {
-            it.readLines(Charsets.UTF_8).map { line ->
-                ArtifactDescriptor.parse(line.trim()).toArtifactIdentifier()
-            }
-        }
+        val artifacts = publications.get().flatMapTo(TreeSet()) { it.toArtifactIdentifiers() }
 
         compareArtifactsImpl(
             rules.mapTo(TreeSet()) { it.toArtifactIdentifier(null) },
@@ -46,17 +42,4 @@ internal abstract class PublicationArtifactsValidationTask : ArtifactsValidation
     public companion object {
         public const val TASK_NAME: String = "checkArtifacts"
     }
-}
-
-private fun ArtifactDescriptor.toArtifactIdentifier(): String {
-    val info = ArtifactInfo(
-        ArtifactInfo.Gav(groupId, artifactId, version),
-        Paths.get(""),
-        extension,
-        classifier,
-        null,
-        null,
-        version.contains("SNAPSHOT")
-    )
-    return info.toArtifactIdentifier(false)
 }
