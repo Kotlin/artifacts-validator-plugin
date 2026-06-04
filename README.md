@@ -11,8 +11,8 @@ The artifacts validator plugin checks that a project publishes exactly the Maven
 
 It supports two related workflows:
 
-- Validate the publications declared in the current Gradle build.
-- Validate the contents of a standalone local Maven repository.
+- Validate the publications declared in the current Gradle build without building the artifacts themselves.
+- Validate the contents of a standalone local Maven repository containing built and published artifacts.
 
 ## Requirements
 
@@ -32,13 +32,15 @@ Projects whose publications should be tracked must apply `maven-publish` (only M
 
 ## Registered tasks
 
-The plugin registers these root-project tasks:
+The plugin registers these tasks in each and every project:
 
 - `checkArtifacts`: validates current `maven-publish` publications against artifact rule files.
 - `dumpArtifacts`: generates artifact dump files from current `maven-publish` publications.
+
+And it also registers the following task to the root project:
+
 - `validateLocalMavenRepo`: validates an arbitrary local Maven repository against rule files.
 
-The root `check` task depends on `checkArtifacts`.
 
 ## Settings extension
 
@@ -46,28 +48,18 @@ The plugin adds an `artifactsValidation` extension to the root project. You can 
 
 ```kotlin
 artifactsValidation {
-    dumpFileNamePrefix.set("artifacts")
-    dumpFileRootDirectory.set(layout.rootDirectory.dir("gradle"))
-    usePerProjectDumps.set(false)
+    dumpFileRootDirectory.set(layout.rootDirectory.dir("artifacts"))
 }
 ```
 
 Supported properties:
 
-- `dumpFileNamePrefix`: file name prefix for generated and validated dump files. Default: `artifacts`
 - `dumpFileRootDirectory`: directory where dump files are stored. Default: `artifacts`
-- `aggregationEnabled`: when `false`, use a single dump file; when `true`, use one dump file per project. Default: `false`
 
-When `aggregationEnabled` is `false`, the plugin uses:
-
-```text
-<dumpFileRootDirectory>/<dumpFileNamePrefix>.txt
-```
-
-When `aggregationEnabled` is `true`, the plugin uses:
+Depending on these settings, files containing lists of artifacts will have the following names:
 
 ```text
-<dumpFileRootDirectory>/<dumpFileNamePrefix>-<project-name>.txt
+<dumpFileRootDirectory>/<project-name>.txt
 ```
 
 ## Typical workflow
@@ -76,7 +68,7 @@ When `aggregationEnabled` is `true`, the plugin uses:
 2. Configure your publications with `maven-publish`.
 3. Generate expected artifact dumps with `./gradlew dumpArtifacts`.
 4. Commit the generated dump files.
-5. Run `./gradlew :check` or `./gradlew checkArtifacts` to ensure publications still match.
+5. Run `./gradlew checkArtifacts` to ensure publications still match.
 
 ## Using `checkArtifacts`
 
@@ -90,7 +82,6 @@ plugin.
 Then run:
 
 ```bash
-./gradlew dumpArtifacts
 ./gradlew checkArtifacts
 ```
 
@@ -104,13 +95,6 @@ With default settings it writes:
 gradle/artifacts.txt
 ```
 
-With `usePerProjectDumps.set(true)`, each project gets its own file, for example:
-
-```text
-gradle/artifacts-lib.txt
-gradle/artifacts-ext.txt
-```
-
 ## Using `validateLocalMavenRepo`
 
 `validateLocalMavenRepo` scans a Maven repository directory or ZIP archive and compares its contents to one or more rule files.
@@ -120,7 +104,7 @@ Basic example:
 ```bash
 ./gradlew validateLocalMavenRepo \
   --artifacts-dir=build/test-repo \
-  --artifacts-list=gradle/artifacts.txt:0.0.1
+  --artifacts-list=artifacts/artifacts.txt:0.0.1
 ```
 
 ZIP input works as well:
@@ -128,7 +112,7 @@ ZIP input works as well:
 ```bash
 ./gradlew validateLocalMavenRepo \
   --artifacts-zip=build/test-repo.zip \
-  --artifacts-list=gradle/artifacts.txt:0.0.1
+  --artifacts-list=artifacts/artifacts.txt:0.0.1
 ```
 
 Multiple rule files with independent expected versions are supported:
@@ -136,8 +120,17 @@ Multiple rule files with independent expected versions are supported:
 ```bash
 ./gradlew validateLocalMavenRepo \
   --artifacts-dir=build/test-repo \
-  --artifacts-list=gradle/artifacts-core.txt:0.0.1 \
-  --artifacts-list=gradle/artifacts-ext.txt:2025a-0.0.1
+  --artifacts-list=artifacts/artifacts-core.txt:0.0.1 \
+  --artifacts-list=artifacts/artifacts-ext.txt:2025a-0.0.1
+```
+
+For multi-module projects where artifacts share the same version,
+you can specify a path to a directory with artifacts lists instead of individual files:
+
+```bash
+./gradlew validateLocalMavenRepo \
+  --artifacts-dir=build/test-repo \
+  --artifacts-list=artifacts/:0.0.1
 ```
 
 Additional options:
