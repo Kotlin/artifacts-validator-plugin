@@ -1,10 +1,7 @@
 package kotlinx.validation
 
 import org.gradle.api.DefaultTask
-import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.provider.Property
-import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
@@ -13,20 +10,18 @@ import java.util.TreeSet
 
 internal abstract class GenerateRuleFileTask : DefaultTask() {
     @get:InputFiles
-    abstract val artifactFiles: ConfigurableFileCollection
+    abstract val artifactsFile: RegularFileProperty
 
     @get:OutputFile
-    abstract val mergedRulesFile: RegularFileProperty
+    abstract val rulesFile: RegularFileProperty
 
     @TaskAction
     fun aggregate() {
-        val artifacts = artifactFiles.files.flatMap { file ->
-            file.readLines(Charsets.UTF_8).map { line ->
-                ArtifactDescriptor.parse(line.trim())
-            }
+        val artifacts = artifactsFile.get().asFile.readLines(Charsets.UTF_8).map { line ->
+            ArtifactDescriptor.parse(line.trim())
         }.mapToRules()
 
-        mergedRulesFile.get().asFile.bufferedWriter(Charsets.UTF_8).use { writer ->
+        rulesFile.get().asFile.bufferedWriter(Charsets.UTF_8).use { writer ->
             artifacts.forEach { writer.appendLine(it) }
         }
     }
