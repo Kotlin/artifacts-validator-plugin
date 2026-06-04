@@ -49,7 +49,7 @@ private fun Project.registerExtension(): ArtifactsValidatorPluginSettingsExtensi
         ArtifactsValidatorPluginSettingsExtension::class.java,
     )
     ext.dumpFileNamePrefix.convention("artifacts")
-    ext.dumpFileRootDirectory.convention(rootDir.dir("gradle"))
+    ext.dumpFileRootDirectory.convention(rootDir.dir("artifacts"))
     return ext
 }
 
@@ -146,7 +146,7 @@ public interface ArtifactsValidatorPluginSettingsExtension {
     public val dumpFileNamePrefix: Property<String>
 
     /**
-     * Directory where rule files are stored. By default, `<projectRootDir>/gradle`.
+     * Directory where rule files are stored. By default, `<projectRootDir>/artifacts`.
      */
     public val dumpFileRootDirectory: DirectoryProperty
 
