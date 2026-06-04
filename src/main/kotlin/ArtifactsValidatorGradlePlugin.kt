@@ -3,17 +3,19 @@ package kotlinx.validation
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.file.Directory
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.attributes.Attribute
+import org.gradle.api.attributes.Usage
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFile
+import org.gradle.api.initialization.ProjectDescriptor
 import org.gradle.api.initialization.Settings
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.Provider
 import org.gradle.api.publish.PublishingExtension
-import org.gradle.api.publish.maven.MavenArtifact
 import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.api.publish.maven.internal.publication.MavenPublicationInternal
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import java.io.File
-import java.io.Serializable
 
 private fun Project.applyRecursively(block: Project.() -> Unit) {
     block()
@@ -22,185 +24,168 @@ private fun Project.applyRecursively(block: Project.() -> Unit) {
 
 public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
     override fun apply(target: Settings) {
+        val extension = target.registerExtension()
+
         // Find the root project, create the extension and tasks in it.
         // Then, traverse all the subprojects and configure tasks to validate their Maven artifacts.
         target.gradle.beforeProject { project ->
-            if (project.path != ":") return@beforeProject
+            if (project.path == ":") {
+                project.tasks.register(ValidateLocalMavenRepositoryTask.TASK_NAME, ValidateLocalMavenRepositoryTask::class.java) {
+                    it.group = LifecycleBasePlugin.VERIFICATION_GROUP
+                    it.description = "Validates the artifacts from a standalone local Maven repository"
+                }
 
-            val rootDir = project.layout.projectDirectory
-            val ext = project.extensions.create(
-                "artifactsValidation",
-                ArtifactsValidatorPluginSettingsExtension::class.java,
+                project.configureRootProject(target, extension)
+            }
+            project.configureAnyProject(extension)
+        }
+    }
+}
+
+private fun Settings.registerExtension(): ArtifactsValidatorPluginSettingsExtension {
+    val rootDir = layout.rootDirectory
+    val ext = extensions.create(
+        "artifactsValidation",
+        ArtifactsValidatorPluginSettingsExtension::class.java,
+    )
+    ext.aggregationEnabled.convention(true)
+    ext.dumpFileNamePrefix.convention("artifacts")
+    ext.dumpFileRootDirectory.convention(rootDir.dir("gradle"))
+    return ext
+}
+
+private fun Project.configureRootProject(settings: Settings, extension: ArtifactsValidatorPluginSettingsExtension) {
+    if (!extension.aggregationEnabled.get()) {
+        return
+    }
+
+    val publishedDumpFile = extension.centralizedDumpFile(this)
+
+    val configName = "ARTIFACTS_VALIDATOR_DEPENDENCY"
+
+    val dependencyConfig = configurations.create(configName) { it.asDependency() }
+    val rootDependencies = dependencies
+    settings.rootProject.applyRecursively {
+        rootDependencies.add(configName, project.project(this.path))
+    }
+
+    val artifacts = project.configurations.create("artifactsDumpAggregator") {
+        it.asConsumer()
+        it.attributes {
+            it.attribute(
+                Usage.USAGE_ATTRIBUTE,
+                project.objects.named(UsageAttr::class.java, UsageAttr.VALUE)
             )
-            ext.usePerProjectDumps.convention(false)
-            ext.dumpFileNamePrefix.convention("artifacts")
-            ext.dumpFileRootDirectory.convention(rootDir.dir("gradle"))
+            it.attribute(ContentAttr.ATTRIBUTE, ContentAttr.LOCAL_ARTIFACT)
+        }
+        it.extendsFrom(dependencyConfig)
+    }
 
-            // A task validating artifacts registered with MavenPublications
-            val checkTask = project.tasks.register(
-                PublicationArtifactsValidationTask.TASK_NAME,
-                PublicationArtifactsValidationTask::class.java
-            ) {
-                it.group = LifecycleBasePlugin.VERIFICATION_GROUP
-                it.description = "Validates the artifacts from configured Maven publications"
+    tasks.register(GenerateRuleFileTask.TASK_NAME, GenerateRuleFileTask::class.java) {
+        it.mergedRulesFile.set(publishedDumpFile)
+        it.artifactFiles.from(artifacts)
+        it.dependsOn(artifacts)
+
+        it.description = "Collects information about all artifacts associated with project's Maven publications"
+        it.group = LifecycleBasePlugin.VERIFICATION_GROUP
+    }
+
+    tasks.register(PublicationArtifactsValidationTask.TASK_NAME, PublicationArtifactsValidationTask::class.java) {
+        it.artifactRuleFiles.from(publishedDumpFile)
+        it.publishedArtifactLists.from(artifacts)
+        it.dependsOn(artifacts)
+
+        it.description = "Validate all artifacts associated with project's Maven publications match the expected list of artifacts"
+        it.group = LifecycleBasePlugin.VERIFICATION_GROUP
+    }
+}
+
+private fun Project.configureAnyProject(extension: ArtifactsValidatorPluginSettingsExtension) {
+    val extractArtifactsTask = tasks.register(CollectArtifactsTask.TASK_NAME, CollectArtifactsTask::class.java) {
+        it.dumpFile.set(layout.buildDirectory.file("artifacts/dump.txt"))
+
+        it.description = "Collects information about all artifacts associated with project's Maven publications"
+        it.group = LifecycleBasePlugin.VERIFICATION_GROUP
+    }
+
+    project.pluginManager.withPlugin("maven-publish") {
+        val publishing = project.extensions.getByType(PublishingExtension::class.java)
+        // Discover all publications and register them in dump and check tasks
+        publishing.publications.withType(MavenPublication::class.java).configureEach { publication ->
+            val descriptors = project.providers.provider {
+                publication.toArtifactDescriptors(project.path)
             }
-            // A task dumping a list of all artifacts that are currently registered with MavenPublications
-            // Refer to README or ArtifactRule.kt for details about the expected rule file format.
-            val dumpTask = project.tasks.register(
-                PublicationArtifactsDumpTask.TASK_NAME,
-                PublicationArtifactsDumpTask::class.java
-            ) {
-                it.group = LifecycleBasePlugin.VERIFICATION_GROUP
-                it.description = "Dumps the list of artifacts from configured Maven publications"
-            }
-            // A CLI task for validating local M2 repo (or a central portal's deployment ZIP)
-            project.tasks.register(
-                ValidateLocalMavenRepositoryTask.TASK_NAME,
-                ValidateLocalMavenRepositoryTask::class.java
-            ) {
-                it.group = LifecycleBasePlugin.VERIFICATION_GROUP
-                it.description = "Validates the artifacts from a standalone local Maven repository"
+            extractArtifactsTask.configure { it.artifacts.addAll(descriptors) }
+        }
+    }
+
+    if (!extension.aggregationEnabled.get()) {
+        val publishedDumpFile = extension.perProjectDumpFile(this)
+        val generatedArtifacts = extractArtifactsTask.flatMap { it.dumpFile }
+
+        tasks.register(GenerateRuleFileTask.TASK_NAME, GenerateRuleFileTask::class.java) {
+            it.artifactFiles.from(generatedArtifacts)
+            it.mergedRulesFile.set(publishedDumpFile)
+
+            it.description = "Dump list of all artifacts associated with project's Maven publications"
+            it.group = LifecycleBasePlugin.VERIFICATION_GROUP
+        }
+
+        tasks.register(PublicationArtifactsValidationTask.TASK_NAME, PublicationArtifactsValidationTask::class.java) {
+            it.artifactRuleFiles.from(publishedDumpFile)
+            it.publishedArtifactLists.from(generatedArtifacts)
+
+            it.description = "Validate all artifacts associated with project's Maven publications match the expected list of artifacts"
+            it.group = LifecycleBasePlugin.VERIFICATION_GROUP
+        }
+    } else {
+        configurations.register("artifactsListProducer") {
+            it.asProducer()
+            it.attributes {
+                it.attribute(
+                    Usage.USAGE_ATTRIBUTE,
+                    project.objects.named(UsageAttr::class.java, UsageAttr.VALUE)
+                )
+                it.attribute(ContentAttr.ATTRIBUTE, ContentAttr.LOCAL_ARTIFACT)
             }
 
-            project.tasks.configureEach {
-                if (it.name == LifecycleBasePlugin.CHECK_TASK_NAME) {
-                    it.dependsOn(checkTask)
-                }
-            }
-
-            // The plugin can either dump/read artifacts to a single file, or a separate per-project files.
-            // If artifacts list is stored in a single file, let's configure it now.
-            checkTask.configure {
-                ext.onSingleDumpFileConfigured(rootDir) { dumpFile ->
-                    it.artifactRuleFiles.from(dumpFile)
-                }
-            }
-            dumpTask.configure {
-                ext.onSingleDumpFileConfigured(rootDir) { dumpFile ->
-                    it.sharedRulesFile.set(dumpFile)
-                }
-            }
-
-            // Scan all subprojects
-            project.applyRecursively {
-                pluginManager.withPlugin("maven-publish") {
-                    val publishing = extensions.getByType(PublishingExtension::class.java)
-                    // Discover all publications and register them in dump and check tasks
-                    publishing.publications.withType(MavenPublication::class.java).configureEach { publication ->
-                        val descriptor = providers.provider {
-                            PublicationDescriptor.from(this@applyRecursively.path, publication)
-                        }
-                        checkTask.configure { it.publications.add(descriptor) }
-                        dumpTask.configure { it.publications.add(descriptor) }
-                    }
-                }
-                // If the (root) project uses per-project artifact lists,
-                // we can now resolve and register corresponding files.
-                checkTask.configure {
-                    ext.onPerProjectDumpFileConfigured(rootDir, this) { dumpFile ->
-                        it.artifactRuleFiles.from(dumpFile)
-                    }
-                }
-                dumpTask.configure {
-                    ext.onPerProjectDumpFileConfigured(rootDir, this) { dumpFile ->
-                        it.perProjectRuleFiles.put(path, dumpFile)
-                    }
-                }
+            it.outgoing.artifact(extractArtifactsTask.flatMap { it.dumpFile }) {
+                it.builtBy(extractArtifactsTask)
             }
         }
     }
 }
 
-/**
- * Resolves single global artifacts list file if [ArtifactsValidatorPluginSettingsExtension.usePerProjectDumps]
- * is `false` and passes it to the [block]. Otherwise, the [block] will not be invoked.
- */
-private fun ArtifactsValidatorPluginSettingsExtension.onSingleDumpFileConfigured(
-    projectRootDirectory: Directory,
-    block: (File) -> Unit
-) {
-    val usePerProjectDumpFile = usePerProjectDumps.get()
-    if (usePerProjectDumpFile) return
-
-    val dumpFilePrefix = dumpFileNamePrefix.get()
-    val defaultDumpFile = dumpFileRootDirectory.file("$dumpFilePrefix.txt").get().asFile
-    // Files have to reside within the root project directory
-    checkFileDoesNotEscapeRoot(projectRootDirectory, defaultDumpFile) {
-        "Configured artifacts file is located outside of the root project' root directory. " +
-                "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory.get()}\") and " +
-                "dumpFileNamePrefix (\"${dumpFileNamePrefix.get()}\") properties to fix this error."
+private fun ArtifactsValidatorPluginSettingsExtension.centralizedDumpFile(project: Project): Provider<RegularFile> {
+    return dumpFileRootDirectory.zip(dumpFileNamePrefix) { dumpFileRootDirectory, dumpFileNamePrefix ->
+        val projectDumpFile = dumpFileRootDirectory.file("$dumpFileNamePrefix.txt")
+        checkFileDoesNotEscapeRoot(project.rootProject.rootDir, projectDumpFile) {
+            "Configured artifacts file is located outside of the root project' root directory. " +
+                    "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory}\") and " +
+                    "dumpFileNamePrefix (\"${dumpFileNamePrefix}\") properties to fix this error."
+        }
+        projectDumpFile
     }
-    block(defaultDumpFile)
 }
 
-/**
- * Resolves an artifacts list file for [project] if [ArtifactsValidatorPluginSettingsExtension.usePerProjectDumps]
- * is `true` and passes it to the [block]. Otherwise, the [block] will not be invoked.
- */
-private fun ArtifactsValidatorPluginSettingsExtension.onPerProjectDumpFileConfigured(
-    projectRootDirectory: Directory,
-    project: Project,
-    block: (File) -> Unit
-) {
-    val usePerProjectDumpFile = usePerProjectDumps.get()
-    if (!usePerProjectDumpFile) return
-
-    val dumpFilePrefix = dumpFileNamePrefix.get()
-    val projectDumpFile = dumpFileRootDirectory.file("$dumpFilePrefix-${project.name}.txt").get().asFile
-    // Files have to reside within the root project directory
-    checkFileDoesNotEscapeRoot(projectRootDirectory, projectDumpFile) {
-        "Configured artifacts file for project \"${project.name}\" (${project.path}) " +
-                "is located outside of the root project's root directory. " +
-                "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory.get()}\") and " +
-                "dumpFileNamePrefix (\"${dumpFileNamePrefix.get()}\") properties to fix this error."
+private fun ArtifactsValidatorPluginSettingsExtension.perProjectDumpFile(project: Project): Provider<RegularFile> {
+    return dumpFileRootDirectory.zip(dumpFileNamePrefix) { dumpFileRootDirectory, dumpFileNamePrefix ->
+        val projectDumpFile = dumpFileRootDirectory.file("$dumpFileNamePrefix-${project.name}.txt")
+        checkFileDoesNotEscapeRoot(project.rootProject.rootDir, projectDumpFile) {
+            "Configured artifacts file for project \"${project.name}\" (${project.path}) " +
+                    "is located outside of the root project's root directory. " +
+                    "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory}\") and " +
+                    "dumpFileNamePrefix (\"${dumpFileNamePrefix}\") properties to fix this error."
+        }
+        projectDumpFile
     }
-    block(projectDumpFile)
 }
 
-private fun checkFileDoesNotEscapeRoot(projectRootDirectory: Directory, file: File, messageProvider: () -> String) {
-    val canonicalRoot = projectRootDirectory.asFile.canonicalFile
-    val canonicalFile = file.canonicalFile
+private fun checkFileDoesNotEscapeRoot(projectRootDirectory: File, file: RegularFile, messageProvider: () -> String) {
+    val canonicalRoot = projectRootDirectory.canonicalFile
+    val canonicalFile = file.asFile.canonicalFile
     if (!canonicalFile.startsWith(canonicalRoot)) {
         throw GradleException(messageProvider())
-    }
-}
-
-/**
- * Describes artifacts from [org.gradle.api.publish.maven.MavenArtifact]s
- * associated with a particular [MavenPublication].
- */
-public class PublicationDescriptor(
-    public val projectPath: String,
-    public val groupId: String,
-    public val artifactId: String,
-    public val version: String,
-    public val artifacts: List<ArtifactDescriptor>
-) : Serializable {
-    public class ArtifactDescriptor(
-        public val classifier: String,
-        public val extension: String
-    ) : Serializable
-
-    internal companion object {
-        internal fun from(projectPath: String, mavenPublication: MavenPublication): PublicationDescriptor {
-            val artifacts = if (mavenPublication is MavenPublicationInternal) {
-                // Internal publication contains all artifacts that are actually published,
-                // include pom and module files. MavenPublication.artifacts does not contain them.
-                mavenPublication.asNormalisedPublication().allArtifacts
-            } else {
-                mavenPublication.artifacts
-            }
-            val artifactDescriptors = artifacts.map {
-                ArtifactDescriptor(it.classifier ?: "", it.extension)
-            }
-            return PublicationDescriptor(
-                projectPath,
-                mavenPublication.groupId,
-                mavenPublication.artifactId,
-                mavenPublication.version,
-                artifactDescriptors
-            )
-        }
     }
 }
 
@@ -214,7 +199,7 @@ public interface ArtifactsValidatorPluginSettingsExtension {
      * Artifact rules file's name's prefix. By default, `artifacts`.
      *
      * Artifact rules are stored in a [dumpFileRootDirectory] directory,
-     * and has either `<dumpFileNamePrefix>.txt` name (if [usePerProjectDumps] is `false`),
+     * and has either `<dumpFileNamePrefix>.txt` name (if [aggregationEnabled] is `false`),
      * or `<dumpFileNamePrefix>-<Project.name>.txt` name.
      */
     public val dumpFileNamePrefix: Property<String>
@@ -225,11 +210,61 @@ public interface ArtifactsValidatorPluginSettingsExtension {
     public val dumpFileRootDirectory: DirectoryProperty
 
     /**
-     * Specifies if rules describing artifacts from all sub-projects should be stored in a single file (when `false`).
-     * or each project will have its own file. By default, `false`, meaning that all rules for all projects are merged
-     * into a single file.
+     * When enabled (by default), the plugin registers tasks only for the root project
+     * and their execution will aggregate information about artifacts from all subprojects.
      *
-     * See [dumpFileNamePrefix] for information about rule file names.
+     * Otherwise, artifacts dump and validations tasks will be registered for each individual
+     * project.
      */
-    public val usePerProjectDumps: Property<Boolean>
+    public val aggregationEnabled: Property<Boolean>
+
+    // TODO: add property to setup excluded projects
+}
+
+private fun ProjectDescriptor.applyRecursively(block: ProjectDescriptor.() -> Unit) {
+    block()
+    children.forEach { project -> project.applyRecursively(block) }
+}
+
+private fun Configuration.asDependency() {
+    // leave this for compatibility with older versions
+    @Suppress("DEPRECATION")
+    isVisible = true
+    isCanBeResolved = false
+    isCanBeConsumed = false
+}
+
+private fun Configuration.asConsumer() {
+    // leave this for compatibility with older versions
+    @Suppress("DEPRECATION")
+    isVisible = false
+    isCanBeResolved = true
+    // this config consumes modules from OTHER projects, and cannot be consumed by other projects
+    isCanBeConsumed = false
+}
+
+private fun Configuration.asProducer() {
+    // leave this for compatibility with older versions
+    @Suppress("DEPRECATION")
+    isVisible = false
+    isCanBeResolved = false
+    // this configuration produces modules that can be consumed by other projects
+    isCanBeConsumed = true
+}
+
+private interface ContentAttr {
+    companion object {
+        val ATTRIBUTE = Attribute.of(
+            "kotlinx.artifacts.validator.content.type",
+            String::class.java
+        )
+
+        const val LOCAL_ARTIFACT = "localArtifact"
+    }
+}
+
+private interface UsageAttr : Usage {
+    companion object {
+        const val VALUE = "artifacts.validator"
+    }
 }

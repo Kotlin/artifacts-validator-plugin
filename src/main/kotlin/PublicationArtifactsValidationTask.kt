@@ -2,12 +2,13 @@ package kotlinx.validation
 
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 import java.nio.file.Paths
-import java.util.TreeSet
+import java.util.*
 
 /**
  * Checks that all artifacts from [publications] matches expected artifacts
@@ -17,12 +18,12 @@ import java.util.TreeSet
  * This task checks only the list of artifacts and does not verify any additional attributes.
  */
 @DisableCachingByDefault
-public abstract class PublicationArtifactsValidationTask : ArtifactsValidationTaskBase() {
+internal abstract class PublicationArtifactsValidationTask : ArtifactsValidationTaskBase() {
     @get:InputFiles
     public abstract val artifactRuleFiles: ConfigurableFileCollection
 
-    @get:Input
-    public abstract val publications: ListProperty<PublicationDescriptor>
+    @get:InputFiles
+    public abstract val publishedArtifactLists: ConfigurableFileCollection
 
     @TaskAction
     public fun validate() {
@@ -30,9 +31,15 @@ public abstract class PublicationArtifactsValidationTask : ArtifactsValidationTa
 
         val rules = dumpFiles.flatMap(::loadRules)
 
+        val artifacts = publishedArtifactLists.files.flatMapTo(TreeSet<String>()) {
+            it.readLines(Charsets.UTF_8).map { line ->
+                ArtifactDescriptor.parse(line.trim()).toArtifactIdentifier()
+            }
+        }
+
         compareArtifactsImpl(
             rules.mapTo(TreeSet()) { it.toArtifactIdentifier(null) },
-            publications.get().flatMapTo(TreeSet()) { it.toArtifactIdentifiers() }
+            artifacts
         )
     }
 
@@ -41,17 +48,15 @@ public abstract class PublicationArtifactsValidationTask : ArtifactsValidationTa
     }
 }
 
-private fun PublicationDescriptor.toArtifactIdentifiers(): List<String> {
-    return artifacts.map {
-        val info = ArtifactInfo(
-            ArtifactInfo.Gav(groupId, artifactId, version),
-            Paths.get(""),
-            it.extension,
-            it.classifier,
-            null,
-            null,
-            version.contains("SNAPSHOT")
-        )
-        info.toArtifactIdentifier(false)
-    }
+private fun ArtifactDescriptor.toArtifactIdentifier(): String {
+    val info = ArtifactInfo(
+        ArtifactInfo.Gav(groupId, artifactId, version),
+        Paths.get(""),
+        extension,
+        classifier,
+        null,
+        null,
+        version.contains("SNAPSHOT")
+    )
+    return info.toArtifactIdentifier(false)
 }

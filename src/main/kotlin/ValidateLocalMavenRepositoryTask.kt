@@ -25,7 +25,7 @@ import java.util.TreeSet
  * correspondingly.
  */
 @DisableCachingByDefault
-public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTaskBase() {
+internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTaskBase() {
     /**
      * A directory containing artifacts to validate.
      *
@@ -251,7 +251,7 @@ public abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTask
     }
 }
 
-public class RuleFileWithVersion(
+internal class RuleFileWithVersion(
     @get:InputFile public val file: RegularFileProperty,
     @get:Input public val version: String
 ) : Serializable

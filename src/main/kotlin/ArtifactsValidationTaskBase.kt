@@ -5,7 +5,7 @@ import org.gradle.api.GradleException
 import java.io.File
 import java.util.SortedSet
 
-public abstract class ArtifactsValidationTaskBase : DefaultTask() {
+internal abstract class ArtifactsValidationTaskBase : DefaultTask() {
     private val logMessagePrefix = "[Artifacts Validation] "
     internal fun error(message: String) = logger.error("$logMessagePrefix$message")
     internal fun warn(message: String) = logger.warn("$logMessagePrefix$message")
@@ -35,7 +35,7 @@ public abstract class ArtifactsValidationTaskBase : DefaultTask() {
 
         throw GradleException(
             "List of found artifacts does not match list of expected artifacts. See log for more details. " +
-                    "To generate or update files describing artifacts, run the '${PublicationArtifactsDumpTask.TASK_NAME}' task."
+                    "To generate or update files describing artifacts, run the '${CollectArtifactsTask.TASK_NAME}' task."
         )
     }
 
