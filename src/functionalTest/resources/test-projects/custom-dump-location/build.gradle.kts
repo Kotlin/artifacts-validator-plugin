@@ -27,6 +27,5 @@ publishing {
 }
 
 artifactsValidation {
-    dumpFileNamePrefix.set("custom-artifacts")
     dumpFileRootDirectory.set(rootDir.resolve("expected"))
 }

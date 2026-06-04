@@ -15,7 +15,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             "publishTestPublicationToTestRepository",
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts-basic-test-project.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/basic-test-project.txt")}:0.0.1"
         ) {
             checkTaskStatus(":publishTestPublicationToTestRepository", TaskOutcome.SUCCESS)
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
@@ -37,7 +37,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             "publishTestPublicationToTestRepository",
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts-basic-test-project.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/basic-test-project.txt")}:0.0.1"
         ) {
             checkTaskStatus(":publishTestPublicationToTestRepository", TaskOutcome.SUCCESS)
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.FAILED)
@@ -59,7 +59,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             "publishTestPublicationToTestRepository",
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts-basic-test-project.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/basic-test-project.txt")}:0.0.1"
         ) {
             checkTaskStatus(":publishTestPublicationToTestRepository", TaskOutcome.SUCCESS)
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
@@ -97,8 +97,8 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
         run(
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts-core.txt")}:0.0.1",
-            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts-ext.txt")}:2025a-0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/core.txt")}:0.0.1",
+            "--artifacts-list=${projectRoot.resolve("artifacts/ext.txt")}:2025a-0.0.1"
         ) {
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)
             outputContains("[Artifacts Validation] Artifacts fully matched the list of expected artifacts.")
@@ -116,7 +116,7 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             "publishAllPublicationsToTestRepository",
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
-            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts-multiplatform-test-project.txt")}:0.0.1"
+            "--artifacts-list=${projectRoot.resolve("artifacts/multiplatform-test-project.txt")}:0.0.1"
         ) {
             checkTaskStatus(":publishAllPublicationsToTestRepository", TaskOutcome.SUCCESS)
             checkTaskStatus(":validateLocalMavenRepo", TaskOutcome.SUCCESS)

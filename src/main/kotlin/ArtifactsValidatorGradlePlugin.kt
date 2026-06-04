@@ -48,7 +48,6 @@ private fun Project.registerExtension(): ArtifactsValidatorPluginSettingsExtensi
         "artifactsValidation",
         ArtifactsValidatorPluginSettingsExtension::class.java,
     )
-    ext.dumpFileNamePrefix.convention("artifacts")
     ext.dumpFileRootDirectory.convention(rootDir.dir("artifacts"))
     return ext
 }
@@ -98,26 +97,13 @@ private fun Project.configureAnyProject(extension: ArtifactsValidatorPluginSetti
     }
 }
 
-private fun ArtifactsValidatorPluginSettingsExtension.centralizedDumpFile(project: Project): Provider<RegularFile> {
-    return dumpFileRootDirectory.zip(dumpFileNamePrefix) { dumpFileRootDirectory, dumpFileNamePrefix ->
-        val projectDumpFile = dumpFileRootDirectory.file("$dumpFileNamePrefix.txt")
-        checkFileDoesNotEscapeRoot(project.rootProject.rootDir, projectDumpFile) {
-            "Configured artifacts file is located outside of the root project' root directory. " +
-                    "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory}\") and " +
-                    "dumpFileNamePrefix (\"${dumpFileNamePrefix}\") properties to fix this error."
-        }
-        projectDumpFile
-    }
-}
-
 private fun ArtifactsValidatorPluginSettingsExtension.perProjectDumpFile(project: Project): Provider<RegularFile> {
-    return dumpFileRootDirectory.zip(dumpFileNamePrefix) { dumpFileRootDirectory, dumpFileNamePrefix ->
-        val projectDumpFile = dumpFileRootDirectory.file("$dumpFileNamePrefix-${project.name}.txt")
+    return dumpFileRootDirectory.map { dumpFileRootDirectory ->
+        val projectDumpFile = dumpFileRootDirectory.file("${project.name}.txt")
         checkFileDoesNotEscapeRoot(project.rootProject.rootDir, projectDumpFile) {
             "Configured artifacts file for project \"${project.name}\" (${project.path}) " +
                     "is located outside of the root project's root directory. " +
-                    "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory}\") and " +
-                    "dumpFileNamePrefix (\"${dumpFileNamePrefix}\") properties to fix this error."
+                    "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory}\") to fix this error."
         }
         projectDumpFile
     }
@@ -137,18 +123,11 @@ private fun checkFileDoesNotEscapeRoot(projectRootDirectory: File, file: Regular
 public interface ArtifactsValidatorPluginSettingsExtension {
     // TODO: Project names can duplicate, let's figure out what to do when it will become a problem.
     //       We can support mapping a Project to a desired filename, for example.
-    /**
-     * Artifact rules file's name's prefix. By default, `artifacts`.
-     *
-     * Artifact rules are stored in a [dumpFileRootDirectory] directory,
-     * and have `<dumpFileNamePrefix>-<Project.name>.txt` name.
-     */
-    public val dumpFileNamePrefix: Property<String>
+    // TODO: add property to setup excluded projects
 
     /**
      * Directory where rule files are stored. By default, `<projectRootDir>/artifacts`.
      */
     public val dumpFileRootDirectory: DirectoryProperty
 
-    // TODO: add property to setup excluded projects
 }

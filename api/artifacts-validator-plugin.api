@@ -5,7 +5,6 @@ public final class kotlinx/validation/ArtifactsValidationSettingsPlugin : org/gr
 }
 
 public abstract interface class kotlinx/validation/ArtifactsValidatorPluginSettingsExtension {
-	public abstract fun getDumpFileNamePrefix ()Lorg/gradle/api/provider/Property;
 	public abstract fun getDumpFileRootDirectory ()Lorg/gradle/api/file/DirectoryProperty;
 }
 

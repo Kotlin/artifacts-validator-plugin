@@ -52,7 +52,7 @@ class PluginTests : PluginTestBase() {
 
         assertEquals(
             "org.jetbrains.kotlinx:basic-test-project/.jar,.pom,sources.jar\n",
-            projectRoot.resolve("artifacts/artifacts-basic-test-project.txt").readText()
+            projectRoot.resolve("artifacts/basic-test-project.txt").readText()
         )
     }
 
@@ -66,11 +66,11 @@ class PluginTests : PluginTestBase() {
 
         assertEquals(
             "org.jetbrains.kotlinx:lib/.jar,.pom\n",
-            projectRoot.resolve("artifacts/artifacts-lib.txt").readText()
+            projectRoot.resolve("artifacts/lib.txt").readText()
         )
         assertEquals(
             "org.jetbrains.kotlinx:ext/.jar,.pom\n",
-            projectRoot.resolve("artifacts/artifacts-ext.txt").readText()
+            projectRoot.resolve("artifacts/ext.txt").readText()
         )
     }
 
@@ -85,10 +85,10 @@ class PluginTests : PluginTestBase() {
         assertEquals(
             requireNotNull(
                 PluginTests::class.java.getResource(
-                    "/test-projects/artifacts/multiplatform/default/artifacts/artifacts-multiplatform-test-project.txt"
+                    "/test-projects/artifacts/multiplatform/default/artifacts/multiplatform-test-project.txt"
                 )
             ).readText(),
-            projectRoot.resolve("artifacts/artifacts-multiplatform-test-project.txt").readText()
+            projectRoot.resolve("artifacts/multiplatform-test-project.txt").readText()
         )
     }
 
