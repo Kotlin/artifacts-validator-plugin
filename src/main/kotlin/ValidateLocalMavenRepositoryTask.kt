@@ -1,6 +1,7 @@
 package kotlinx.validation
 
 import org.gradle.api.GradleException
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
@@ -57,6 +58,9 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
     /**
      * Lists of rules describing expected artifacts associated with
      * an expected version artifacts corresponding to these rules.
+     *
+     * A rules have to point to a file, or to a directory. In the latter case, all files
+     * within a directory will be read and combined.
      */
     @get:Nested
     public abstract val artifactsList: ListProperty<RuleFileWithVersion>
@@ -67,7 +71,8 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
     @Option(
         option = "artifacts-list",
         description = "A path to a file listing artifacts to validate paired with their expected version, " +
-                "using the format <file>:<version>. Repeat this option to validate multiple artifact lists."
+                "using the format <file|directory>:<version>. If a path points to a directory, all files from it" +
+                "will be read and combined together. Repeat this option to validate multiple artifact lists."
     )
     public fun artifactsListOption(values: List<String>) {
         values.forEach { fileAndVersion ->
@@ -79,7 +84,7 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
             }
             val file = File(fileAndVersion.substring(0, delimiterIndex))
             val version = fileAndVersion.substring(delimiterIndex + 1)
-            val fileProperty = project.objects.fileProperty().also { it.set(file) }
+            val fileProperty = project.objects.fileCollection().from(file)
             artifactsList.add(RuleFileWithVersion(fileProperty, version))
         }
     }
@@ -195,9 +200,18 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
         val expectedArtifacts = sortedSetOf<String>()
 
         artifactsList.getOrElse(emptyList()).forEach {
-            val file = it.file.asFile.get()
+            val filesOrDirectories = it.files.files
             val version = it.version
-            expectedArtifacts.addAll(loadRules(file).map { it.toArtifactIdentifier(version) })
+            filesOrDirectories.forEach { fileOrDirectory ->
+                val files = if (fileOrDirectory.isDirectory) {
+                    fileOrDirectory.listFiles()
+                } else {
+                    arrayOf(fileOrDirectory)
+                }
+                files.forEach { file ->
+                    expectedArtifacts.addAll(loadRules(file).map { it.toArtifactIdentifier(version) })
+                }
+            }
         }
 
         return expectedArtifacts
@@ -252,6 +266,6 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
 }
 
 internal class RuleFileWithVersion(
-    @get:InputFile public val file: RegularFileProperty,
+    @get:InputFiles public val files: ConfigurableFileCollection,
     @get:Input public val version: String
 ) : Serializable
