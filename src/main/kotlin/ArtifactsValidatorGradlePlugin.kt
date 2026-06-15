@@ -19,11 +19,11 @@ private fun Project.applyRecursively(block: Project.() -> Unit) {
 
 public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
     override fun apply(target: Settings) {
+        val extension = target.registerExtension()
         // Find the root project, create the extension and tasks in it.
         // Then, traverse all the subprojects and configure tasks to validate their Maven artifacts.
         target.gradle.beforeProject { project ->
             if (project.path == ":") {
-                project.registerExtension()
                 project.tasks.register(
                     ValidateLocalMavenRepositoryTask.TASK_NAME,
                     ValidateLocalMavenRepositoryTask::class.java
@@ -32,17 +32,14 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
                     it.description = "Validates the artifacts from a standalone local Maven repository"
                 }
             }
-            project.configureAnyProject(
-                project.rootProject.extensions.getByType(
-                    ArtifactsValidatorPluginSettingsExtension::class.java
-                )
-            )
+            project.configureAnyProject(extension)
         }
     }
 }
 
-private fun Project.registerExtension(): ArtifactsValidatorPluginSettingsExtension {
-    val rootDir = project.layout.projectDirectory
+private fun Settings.registerExtension(): ArtifactsValidatorPluginSettingsExtension {
+    @Suppress("UnstableApiUsage")
+    val rootDir = this.layout.rootDirectory
     val ext = extensions.create(
         "artifactsValidation",
         ArtifactsValidatorPluginSettingsExtension::class.java,

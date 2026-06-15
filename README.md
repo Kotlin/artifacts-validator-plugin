@@ -44,10 +44,18 @@ And it also registers the following task to the root project:
 
 ## Settings extension
 
-The plugin adds an `artifactsValidation` extension to the root project. You can access it in `build.gradle.kts`:
+The plugin adds an `artifactsValidation` extension to Gradle settings. 
 
+If you use Gradle 8.8 or newer, you can access it in `settings.gradle.kts` using a type safe accessor:
 ```kotlin
 artifactsValidation {
+    dumpFileRootDirectory.set(layout.rootDirectory.dir("artifacts"))
+}
+```
+
+For older Gradle versions, a more verbose syntax is required:
+```kotlin
+extensions.configure<kotlinx.validation.ArtifactsValidatorPluginSettingsExtension>("artifactsValidation") {
     dumpFileRootDirectory.set(layout.rootDirectory.dir("artifacts"))
 }
 ```
@@ -92,7 +100,7 @@ Then run:
 With default settings it writes:
 
 ```text
-gradle/artifacts.txt
+artifacts/<project-name>.txt
 ```
 
 ## Using `validateLocalMavenRepo`

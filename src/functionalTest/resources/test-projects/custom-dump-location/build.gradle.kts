@@ -25,7 +25,3 @@ publishing {
         }
     }
 }
-
-artifactsValidation {
-    dumpFileRootDirectory.set(rootDir.resolve("expected"))
-}
