@@ -78,10 +78,10 @@ private fun Project.configureAnyProject(extension: ArtifactsValidatorPluginSetti
         }
     }
 
-    tasks.matching {
-        it.name == LifecycleBasePlugin.CHECK_TASK_NAME
-    }.configureEach {
-        it.dependsOn(checkTask)
+    tasks.configureEach {
+        if (it.name == LifecycleBasePlugin.CHECK_TASK_NAME) {
+            it.dependsOn(checkTask)
+        }
     }
 }
 
