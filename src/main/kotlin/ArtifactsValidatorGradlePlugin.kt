@@ -3,6 +3,7 @@ package kotlinx.validation
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFile
 import org.gradle.api.initialization.Settings
@@ -20,6 +21,8 @@ private fun Project.applyRecursively(block: Project.() -> Unit) {
 public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
     override fun apply(target: Settings) {
         val extension = target.registerExtension()
+        @Suppress("UnstableApiUsage")
+        val rootDirectory = target.layout.rootDirectory
         // Find the root project, create the extension and tasks in it.
         // Then, traverse all the subprojects and configure tasks to validate their Maven artifacts.
         target.gradle.beforeProject { project ->
@@ -32,7 +35,7 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
                     it.description = "Validates the artifacts from a standalone local Maven repository"
                 }
             }
-            project.configureAnyProject(extension)
+            project.configureAnyProject(extension, rootDirectory)
         }
     }
 }
@@ -48,8 +51,8 @@ private fun Settings.registerExtension(): ArtifactsValidatorPluginSettingsExtens
     return ext
 }
 
-private fun Project.configureAnyProject(extension: ArtifactsValidatorPluginSettingsExtension) {
-    val publishedDumpFile = extension.perProjectDumpFile(this)
+private fun Project.configureAnyProject(extension: ArtifactsValidatorPluginSettingsExtension, rootDirectory: Directory) {
+    val publishedDumpFile = extension.perProjectDumpFile(this, rootDirectory)
 
     val dumpTask = tasks.register(PublicationArtifactsDumpTask.TASK_NAME, PublicationArtifactsDumpTask::class.java) {
         it.dumpFile.set(publishedDumpFile)
@@ -85,10 +88,13 @@ private fun Project.configureAnyProject(extension: ArtifactsValidatorPluginSetti
     }
 }
 
-private fun ArtifactsValidatorPluginSettingsExtension.perProjectDumpFile(project: Project): Provider<RegularFile> {
+private fun ArtifactsValidatorPluginSettingsExtension.perProjectDumpFile(
+    project: Project,
+    rootDirectory: Directory
+): Provider<RegularFile> {
     return dumpFileRootDirectory.map { dumpFileRootDirectory ->
         val projectDumpFile = dumpFileRootDirectory.file("${project.name}.txt")
-        checkFileDoesNotEscapeRoot(project.rootProject.rootDir, projectDumpFile) {
+        checkFileDoesNotEscapeRoot(rootDirectory.asFile, projectDumpFile) {
             "Configured artifacts file for project \"${project.name}\" (${project.path}) " +
                     "is located outside of the root project's root directory. " +
                     "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory}\") to fix this error."
