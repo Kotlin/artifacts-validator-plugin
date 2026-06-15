@@ -126,6 +126,28 @@ class PluginTests : PluginTestBase() {
     }
 
     @Test
+    fun dumpAndCheckArtifactsWithConfigurationCacheAndProjectIsolation() {
+        copyProject("/test-projects/isolated-multi-module")
+
+        runWithConfigurationCacheAndProjectIsolation("dumpArtifacts") {
+            checkTaskStatus(":dumpArtifacts", TaskOutcome.SUCCESS)
+            checkTaskStatus(":lib:dumpArtifacts", TaskOutcome.SUCCESS)
+            checkTaskStatus(":ext:dumpArtifacts", TaskOutcome.SUCCESS)
+            outputContains("Configuration cache entry stored.")
+        }
+        assertEquals("", projectRoot.resolve("artifacts/isolated-multi-module.txt").readText())
+        assertEquals("org.jetbrains.kotlinx:lib/.jar,.pom\n", projectRoot.resolve("artifacts/lib.txt").readText())
+        assertEquals("org.jetbrains.kotlinx:ext/.jar,.pom\n", projectRoot.resolve("artifacts/ext.txt").readText())
+
+        runWithConfigurationCacheAndProjectIsolation("checkArtifacts") {
+            checkTaskStatus(":checkArtifacts", TaskOutcome.SUCCESS)
+            checkTaskStatus(":lib:checkArtifacts", TaskOutcome.SUCCESS)
+            checkTaskStatus(":ext:checkArtifacts", TaskOutcome.SUCCESS)
+            outputContains("Configuration cache entry stored.")
+        }
+    }
+
+    @Test
     fun checkArtifactsSeePublicationArtifactsAddedInAfterEvaluate() {
         copyProjects(
             "/test-projects/publication-with-sources-after-evaluate",

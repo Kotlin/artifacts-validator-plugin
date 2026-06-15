@@ -61,15 +61,19 @@ abstract class PluginTestBase {
     }
 
     private fun prepareRunner(vararg commands: String): GradleRunner =
+        prepareRunnerWithGradleVersion(null, *commands)
+
+    private fun prepareRunnerWithGradleVersion(gradleVersionOverride: String?, vararg commands: String): GradleRunner =
         GradleRunner.create()
             .withPluginClasspath()
             .withProjectDir(projectRoot)
             .withArguments(*commands)
             .forwardOutput()
-            .withDebug(true) // we need it to collect code coverage
+            .withDebug("--configuration-cache" !in commands) // we need it to collect code coverage, but it won't work with conf cache
             .let {
-                if (gradleVersion != null) {
-                    it.withGradleVersion(gradleVersion)
+                val selectedGradleVersion = gradleVersionOverride ?: gradleVersion
+                if (selectedGradleVersion != null) {
+                    it.withGradleVersion(selectedGradleVersion)
                 } else {
                     it
                 }
@@ -77,6 +81,17 @@ abstract class PluginTestBase {
 
     fun run(vararg commands: String, block: BuildResult.() -> Unit) {
         block(prepareRunner(*commands).build())
+    }
+
+    fun runWithConfigurationCacheAndProjectIsolation(vararg commands: String, block: BuildResult.() -> Unit) {
+        block(
+            prepareRunnerWithGradleVersion(
+                "8.14.4",
+                *commands,
+                "--configuration-cache",
+                "-Dorg.gradle.unsafe.isolated-projects=true",
+            ).build()
+        )
     }
 
     fun runAndFail(vararg commands: String, block: BuildResult.() -> Unit) {
