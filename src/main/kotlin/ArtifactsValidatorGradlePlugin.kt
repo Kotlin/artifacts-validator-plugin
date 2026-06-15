@@ -35,7 +35,7 @@ public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
                     it.description = "Validates the artifacts from a standalone local Maven repository"
                 }
             }
-            project.configureAnyProject(extension, rootDirectory)
+            project.configureProject(extension, rootDirectory)
         }
     }
 }
@@ -51,7 +51,7 @@ private fun Settings.registerExtension(): ArtifactsValidatorPluginSettingsExtens
     return ext
 }
 
-private fun Project.configureAnyProject(extension: ArtifactsValidatorPluginSettingsExtension, rootDirectory: Directory) {
+private fun Project.configureProject(extension: ArtifactsValidatorPluginSettingsExtension, rootDirectory: Directory) {
     val publishedDumpFile = extension.perProjectDumpFile(this, rootDirectory)
 
     val dumpTask = tasks.register(PublicationArtifactsDumpTask.TASK_NAME, PublicationArtifactsDumpTask::class.java) {
