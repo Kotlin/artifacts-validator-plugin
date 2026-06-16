@@ -3,7 +3,6 @@ plugins {
     signing
 }
 
-@Suppress("UnstableApiUsage")
 publishing {
     publications {
         repositories {

@@ -14,11 +14,6 @@ import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import java.io.File
 
-private fun Project.applyRecursively(block: Project.() -> Unit) {
-    block()
-    childProjects.forEach { (_, project) -> project.applyRecursively(block) }
-}
-
 public class ArtifactsValidationSettingsPlugin : Plugin<Settings> {
     override fun apply(target: Settings) {
         val extension = target.registerExtension()

@@ -2,12 +2,10 @@ package kotlinx.validation
 
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.provider.ListProperty
-import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
-import java.nio.file.Paths
 import java.util.*
 
 /**

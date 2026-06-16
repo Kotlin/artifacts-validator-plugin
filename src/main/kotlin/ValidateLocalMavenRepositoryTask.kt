@@ -199,9 +199,9 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
     private fun loadExpectedArtifactsList(): SortedSet<String> {
         val expectedArtifacts = sortedSetOf<String>()
 
-        artifactsList.getOrElse(emptyList()).forEach {
-            val filesOrDirectories = it.files.files
-            val version = it.version
+        artifactsList.getOrElse(emptyList()).forEach { artifact ->
+            val filesOrDirectories = artifact.files.files
+            val version = artifact.version
             filesOrDirectories.forEach { fileOrDirectory ->
                 val files = if (fileOrDirectory.exists() && fileOrDirectory.isDirectory) {
                     fileOrDirectory.listFiles()
@@ -221,14 +221,13 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
     }
 
     private fun compareArtifacts(expectedArtifacts: SortedSet<String>, artifacts: List<AggregatedArtifactInfo>) {
-        val actualArtifacts = artifacts.flatMapTo(TreeSet<String>()) {
-            it.artifacts.map { it.artifact.toArtifactIdentifier() }
+        val actualArtifacts = artifacts.flatMapTo(TreeSet<String>()) { artifact ->
+            artifact.artifacts.map { it.artifact.toArtifactIdentifier() }
         }
 
         compareArtifactsImpl(expectedArtifacts, actualArtifacts)
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     private fun validateAttributes(
         artifacts: List<AggregatedArtifactInfo>,
         requireSignature: Boolean,

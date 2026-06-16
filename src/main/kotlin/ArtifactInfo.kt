@@ -194,7 +194,6 @@ internal data class ArtifactInfo(
     val signatureType: SignatureType? = null,
     val checksumType: ChecksumType? = null,
     val isSnapshot: Boolean,
-    // This is the "version" in maven GAV terminology, while gav.version is a base version.
     val version: String = gav.baseVersion
 ) {
     data class Gav(

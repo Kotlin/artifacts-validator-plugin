@@ -220,9 +220,9 @@ class RepositoryScanningTest {
 
         fun checkErrorForFile(path: String) {
             assertTrue(errors.containsKey(path))
-            val errors = errors[path]!!
-            assertEquals(1, errors.size)
-            val errorMessage = errors.first()
+            val fileErrors = errors[path]!!
+            assertEquals(1, fileErrors.size)
+            val errorMessage = fileErrors.first()
             assertContains(
                 errorMessage,
                 "There are checksum and/or signature files corresponding to an artifact, " +
