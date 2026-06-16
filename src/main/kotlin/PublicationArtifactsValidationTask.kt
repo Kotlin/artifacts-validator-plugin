@@ -20,13 +20,13 @@ import java.util.*
 @DisableCachingByDefault
 internal abstract class PublicationArtifactsValidationTask : ArtifactsValidationTaskBase() {
     @get:InputFiles
-    public abstract val artifactRuleFiles: ConfigurableFileCollection
+    abstract val artifactRuleFiles: ConfigurableFileCollection
 
     @get:Input
-    public abstract val publications: ListProperty<PublicationDescriptor>
+    abstract val publications: ListProperty<PublicationDescriptor>
 
     @TaskAction
-    public fun validate() {
+    fun validate() {
         val dumpFiles = artifactRuleFiles.files.filter { it.exists() }
 
         val rules = dumpFiles.flatMap(::loadRules)
@@ -39,7 +39,7 @@ internal abstract class PublicationArtifactsValidationTask : ArtifactsValidation
         )
     }
 
-    public companion object {
-        public const val TASK_NAME: String = "checkArtifacts"
+    companion object {
+        const val TASK_NAME: String = "checkArtifacts"
     }
 }

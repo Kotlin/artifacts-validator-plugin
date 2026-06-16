@@ -12,13 +12,13 @@ import org.gradle.work.DisableCachingByDefault
 @DisableCachingByDefault
 internal abstract class PublicationArtifactsDumpTask : DefaultTask() {
     @get:Input
-    public abstract val publications: ListProperty<PublicationDescriptor>
+    abstract val publications: ListProperty<PublicationDescriptor>
 
     @get:OutputFile
-    public abstract val dumpFile: RegularFileProperty
+    abstract val dumpFile: RegularFileProperty
 
     @TaskAction
-    public fun dump() {
+    fun dump() {
         val publications = publications.get()
         dumpFile.get().asFile.bufferedWriter(Charsets.UTF_8).use { writer ->
             publications.map { it.toRules() }.sorted().forEach {
@@ -27,7 +27,7 @@ internal abstract class PublicationArtifactsDumpTask : DefaultTask() {
         }
     }
 
-    public companion object {
-        public const val TASK_NAME: String = "dumpArtifacts"
+    companion object {
+        const val TASK_NAME: String = "dumpArtifacts"
     }
 }

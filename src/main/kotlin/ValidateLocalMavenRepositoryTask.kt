@@ -39,7 +39,7 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
         description = "Path to a directory containing artifacts to be validated. " +
                 "It is implied that a directory has Maven 2 layout."
     )
-    public abstract val artifactsRepositoryDir: DirectoryProperty
+    abstract val artifactsRepositoryDir: DirectoryProperty
 
     /**
      * A ZIP archive containing artifacts to validate.
@@ -53,7 +53,7 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
         description = "Path to a ZIP archive containing artifacts to be validated. " +
                 "It is implied that archive entries have Maven 2 layout."
     )
-    public abstract val artifactsRepositoryZip: RegularFileProperty
+    abstract val artifactsRepositoryZip: RegularFileProperty
 
     /**
      * Lists of rules describing expected artifacts associated with
@@ -63,7 +63,7 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
      * within a directory will be read and combined.
      */
     @get:Nested
-    public abstract val artifactsList: ListProperty<RuleFileWithVersion>
+    abstract val artifactsList: ListProperty<RuleFileWithVersion>
 
     /**
      * Command line option parser for [artifactsList]. Overrides all values specified in [artifactsList].
@@ -74,7 +74,7 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
                 "using the format <file|directory>:<version>. If a path points to a directory, all files from it" +
                 "will be read and combined together. Repeat this option to validate multiple artifact lists."
     )
-    public fun artifactsListOption(values: List<String>) {
+    fun artifactsListOption(values: List<String>) {
         values.forEach { fileAndVersion ->
             val delimiterIndex = fileAndVersion.lastIndexOf(':')
             if (delimiterIndex <= 0 || delimiterIndex == fileAndVersion.lastIndex) {
@@ -99,7 +99,7 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
         description = "Verify that every artifact has associated signature (.asc) file. Disabled by default. " +
                 "Only the presence of a signature file will be checked, not the signature itself."
     )
-    public abstract val requireSignatures: Property<Boolean>
+    abstract val requireSignatures: Property<Boolean>
 
     // TODO: verify checksums
     /**
@@ -109,7 +109,7 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
      */
     @get:Input
     @get:Optional
-    public abstract val requireChecksums: SetProperty<String>
+    abstract val requireChecksums: SetProperty<String>
 
     @Option(
         option = "require-checksums",
@@ -117,7 +117,7 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
                 "By default, the set of checksums is empty, meaning no checksum validation. " +
                 "Accepts a comma-separated list of values: MD5, SHA1, SHA256, SHA512"
     )
-    public fun requireChecksumsOption(value: String) {
+    fun requireChecksumsOption(value: String) {
         requireChecksums.set(
             value
                 .split(',')
@@ -128,7 +128,7 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
     }
 
     @TaskAction
-    public fun validate() {
+    fun validate() {
         // get the value earlier to validate task inputs
         val checksums = parseChecksumTypes()
         val artifacts = loadArtifacts()
@@ -263,12 +263,12 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
         }
     }
 
-    public companion object {
-        public const val TASK_NAME: String = "validateLocalMavenRepo"
+    companion object {
+        const val TASK_NAME: String = "validateLocalMavenRepo"
     }
 }
 
 internal class RuleFileWithVersion(
-    @get:InputFiles public val files: ConfigurableFileCollection,
-    @get:Input public val version: String
+    @get:InputFiles val files: ConfigurableFileCollection,
+    @get:Input val version: String
 ) : Serializable

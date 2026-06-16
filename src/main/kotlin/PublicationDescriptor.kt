@@ -10,15 +10,15 @@ import java.nio.file.Paths
  * associated with a particular [MavenPublication].
  */
 internal class PublicationDescriptor(
-    public val projectPath: String,
-    public val groupId: String,
-    public val artifactId: String,
-    public val version: String,
-    public val artifacts: List<ArtifactDescriptor>
+    val projectPath: String,
+    val groupId: String,
+    val artifactId: String,
+    val version: String,
+    val artifacts: List<ArtifactDescriptor>
 ) : Serializable {
-    public class ArtifactDescriptor(
-        public val classifier: String,
-        public val extension: String
+    class ArtifactDescriptor(
+        val classifier: String,
+        val extension: String
     ) : Serializable
 
     internal companion object {

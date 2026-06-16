@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
-internal fun assertThat(ai: ArtifactInfo, block: ArtifactInfoAsserter.() -> Unit): Unit {
+internal fun assertThat(ai: ArtifactInfo, block: ArtifactInfoAsserter.() -> Unit) {
     ArtifactInfoAsserter(ai).apply(block)
 }
 
@@ -36,7 +36,7 @@ internal class ArtifactInfoAsserter(val ai: ArtifactInfo) {
     fun hasBaseFileName(name: String) = assertEquals(name, ai.fileName)
 }
 
-public class ArtifactInfoExtractionTest {
+class ArtifactInfoExtractionTest {
     private fun artifactInfo(from: String): ArtifactInfo {
         return Path(from).extractArtifactInfo().getOrThrow()
     }
