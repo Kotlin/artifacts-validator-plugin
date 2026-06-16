@@ -7,6 +7,7 @@ import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFile
 import org.gradle.api.initialization.Settings
+import org.gradle.api.internal.provider.DefaultProvider
 import org.gradle.api.provider.Provider
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
@@ -71,10 +72,11 @@ private fun Project.configureProject(extension: ArtifactsValidatorPluginSettings
 
     project.pluginManager.withPlugin("maven-publish") {
         val publishing = project.extensions.getByType(PublishingExtension::class.java)
+        val projectPath = project.path
         // Discover all publications and register them in dump and check tasks
         publishing.publications.withType(MavenPublication::class.java).configureEach { publication ->
-            val descriptor = providers.provider {
-                PublicationDescriptor.from(project.path, publication)
+            val descriptor = DefaultProvider {
+                PublicationDescriptor.from(projectPath, publication)
             }
             checkTask.configure { it.publications.add(descriptor) }
             dumpTask.configure { it.publications.add(descriptor) }
@@ -92,10 +94,12 @@ private fun ArtifactsValidatorPluginSettingsExtension.perProjectDumpFile(
     project: Project,
     rootDirectory: Directory
 ): Provider<RegularFile> {
+    val projectName = project.name
+    val projectPath = project.path
     return dumpFileRootDirectory.map { dumpFileRootDirectory ->
-        val projectDumpFile = dumpFileRootDirectory.file("${project.name}.txt")
+        val projectDumpFile = dumpFileRootDirectory.file("$projectName.txt")
         checkFileDoesNotEscapeRoot(rootDirectory.asFile, projectDumpFile) {
-            "Configured artifacts file for project \"${project.name}\" (${project.path}) " +
+            "Configured artifacts file for project \"$projectName\" ($projectPath) " +
                     "is located outside of the root project's root directory. " +
                     "Check and update dumpFileRootDirectory (\"${dumpFileRootDirectory}\") to fix this error."
         }
