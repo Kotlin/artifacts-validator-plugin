@@ -7,7 +7,6 @@ import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFile
 import org.gradle.api.initialization.Settings
-import org.gradle.api.internal.provider.DefaultProvider
 import org.gradle.api.provider.Provider
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
@@ -68,9 +67,10 @@ private fun Project.configureProject(extension: ArtifactsValidatorPluginSettings
     project.pluginManager.withPlugin("maven-publish") {
         val publishing = project.extensions.getByType(PublishingExtension::class.java)
         val projectPath = project.path
+        val providers = project.providers
         // Discover all publications and register them in dump and check tasks
         publishing.publications.withType(MavenPublication::class.java).configureEach { publication ->
-            val descriptor = DefaultProvider {
+            val descriptor = providers.provider {
                 PublicationDescriptor.from(projectPath, publication)
             }
             checkTask.configure { it.publications.add(descriptor) }
