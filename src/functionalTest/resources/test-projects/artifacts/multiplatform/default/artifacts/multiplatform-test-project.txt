@@ -1,0 +1,4 @@
+org.jetbrains.kotlinx:multiplatform-test-project-js/.klib,.module,.pom,sources.jar
+org.jetbrains.kotlinx:multiplatform-test-project-jvm/.jar,.module,.pom,sources.jar
+org.jetbrains.kotlinx:multiplatform-test-project-linuxx64/.klib,.module,.pom,sources.jar
+org.jetbrains.kotlinx:multiplatform-test-project/.jar,.module,.pom,kotlin-tooling-metadata.json,sources.jar

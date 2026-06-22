@@ -1,0 +1,1 @@
+org.jetbrains.kotlinx:basic-test-project/.jar,.pom
