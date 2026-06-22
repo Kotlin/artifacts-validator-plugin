@@ -82,6 +82,18 @@ internal abstract class ValidateLocalMavenRepositoryTask : ArtifactsValidationTa
                     "artifacts-list value must use the format <file>:<version>, was: \"$fileAndVersion\"."
                 )
             }
+            // ':' is also a drive separator on Windows, so let's check if fileAndVersion is a Windows path
+            // without any signs of a version
+            val isWindows = System.getProperty("os.name").lowercase().contains("win")
+            if (isWindows && fileAndVersion.count { it == ':' } == 1) {
+                // In general, that's an incorrect check, but that's how j.n.f.Path detects the drive, so let's stick to it
+               if (delimiterIndex == 1 && fileAndVersion.first().isLetter()) {
+                   throw GradleException(
+                       "artifacts-list value must use the format <file>:<version>, " +
+                               "was a Windows path without a version: \"$fileAndVersion\"."
+                   )
+               }
+            }
             val file = File(fileAndVersion.substring(0, delimiterIndex))
             val version = fileAndVersion.substring(delimiterIndex + 1)
             val fileProperty = project.objects.fileCollection().from(file)
