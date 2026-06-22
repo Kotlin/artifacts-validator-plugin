@@ -1,6 +1,8 @@
 package kotlinx.validation.test
 
+import org.gradle.internal.impldep.org.testng.SkipException
 import org.gradle.testkit.runner.TaskOutcome
+import org.junit.jupiter.api.Assumptions
 import kotlin.test.Test
 
 class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
@@ -278,11 +280,36 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
 
     @Test
     fun checkArtifactsListWithoutVersion() {
+        // On Windows, ':' can be a part of the file path,
+        // and in this test, there will be an error, but not the expected one
+        skipOnWindows()
+
         copyProject("/test-projects/basic")
 
         runAndFail(
             "validateLocalMavenRepo",
             "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
+            "--artifacts-list=${projectRoot.resolve("artifacts/artifacts.txt")}"
+        ) {
+            outputContains(
+                "artifacts-list value must use the format <file>:<version>, was: " +
+                        "\"${projectRoot.resolve("artifacts/artifacts.txt")}\"."
+            )
+        }
+    }
+
+    @Test
+    fun checkArtifactsListWithoutVersionWithAbsoluteWindowsPath() {
+        runOnWindowsOnly()
+
+        copyProject("/test-projects/basic")
+
+        val testRepo = projectRoot.resolve("build/test-repo")
+        testRepo.mkdirs()
+
+        runAndFail(
+            "validateLocalMavenRepo",
+            "--artifacts-dir=${testRepo}",
             "--artifacts-list=${projectRoot.resolve("artifacts/artifacts.txt")}"
         ) {
             outputContains(
@@ -366,5 +393,15 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
             outputContains("Artifacts list file does not exist:")
             outputContains("missing-artifacts.txt")
         }
+    }
+
+    private fun skipOnWindows() {
+        val osName = System.getProperty("os.name").lowercase()
+        Assumptions.assumeFalse(osName.contains("win"), "Skipping test on Windows")
+    }
+
+    private fun runOnWindowsOnly() {
+        val osName = System.getProperty("os.name").lowercase()
+        Assumptions.assumeTrue(osName.contains("win"), "Skipping test on Windows")
     }
 }

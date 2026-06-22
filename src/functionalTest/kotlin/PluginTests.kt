@@ -2,6 +2,7 @@ package kotlinx.validation.test
 
 import org.gradle.testkit.runner.TaskOutcome
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
 class PluginTests : PluginTestBase() {
@@ -82,14 +83,17 @@ class PluginTests : PluginTestBase() {
             checkTaskStatus(":dumpArtifacts", TaskOutcome.SUCCESS)
         }
 
-        assertEquals(
-            requireNotNull(
-                PluginTests::class.java.getResource(
-                    "/test-projects/artifacts/multiplatform/default/artifacts/multiplatform-test-project.txt"
-                )
-            ).readText(),
-            projectRoot.resolve("artifacts/multiplatform-test-project.txt").readText()
-        )
+        val expectedArtifacts = requireNotNull(PluginTests::class.java.getResourceAsStream(
+            "/test-projects/artifacts/multiplatform/default/artifacts/multiplatform-test-project.txt"
+        )).bufferedReader(Charsets.UTF_8)
+            .readLines()
+            .filter { it.isNotBlank() }
+
+        val actualArtifacts = projectRoot.resolve("artifacts/multiplatform-test-project.txt")
+            .readLines()
+            .filter { it.isNotBlank() }
+
+        assertContentEquals(expectedArtifacts, actualArtifacts)
     }
 
     @Test

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.net.URI
 import java.nio.file.FileSystems
+import kotlin.io.path.Path
 import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -194,11 +195,12 @@ class RepositoryScanningTest {
             errors.add(path.relativeTo(root) to exception.message!!)
         }
 
+        val fsPath = Path("test/file").toString()
         assertEquals(1, errors.size)
-        assertEquals("test/file", errors.single().first.toString())
+        assertEquals(fsPath, errors.single().first.toString())
 
         val expectedError = "The artifact file has invalid path format: " +
-                "it has to contain at least 4 segments, but contained only 2: test/file"
+                "it has to contain at least 4 segments, but contained only 2: $fsPath"
         assertEquals(expectedError, errors.single().second)
     }
 
@@ -219,8 +221,9 @@ class RepositoryScanningTest {
         assertEquals(2, errors.size)
 
         fun checkErrorForFile(path: String) {
-            assertTrue(errors.containsKey(path))
-            val fileErrors = errors[path]!!
+            val fsPath = Path(path).toString()
+            assertTrue(errors.containsKey(fsPath))
+            val fileErrors = errors[fsPath]!!
             assertEquals(1, fileErrors.size)
             val errorMessage = fileErrors.first()
             assertContains(
