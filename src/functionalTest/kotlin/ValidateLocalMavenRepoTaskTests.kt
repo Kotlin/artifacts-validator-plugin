@@ -304,16 +304,14 @@ class ValidateLocalMavenRepoTaskTests : PluginTestBase() {
 
         copyProject("/test-projects/basic")
 
-        val testRepo = projectRoot.resolve("build/test-repo")
-        testRepo.mkdirs()
-
         runAndFail(
             "validateLocalMavenRepo",
-            "--artifacts-dir=${testRepo}",
+            "--artifacts-dir=${projectRoot.resolve("build/test-repo")}",
             "--artifacts-list=${projectRoot.resolve("artifacts/artifacts.txt")}"
         ) {
             outputContains(
-                "artifacts-list value must use the format <file>:<version>, was: " +
+                "artifacts-list value must use the format <file>:<version>, " +
+                        "was a Windows path without a version: " +
                         "\"${projectRoot.resolve("artifacts/artifacts.txt")}\"."
             )
         }
