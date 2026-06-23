@@ -20,7 +20,7 @@ group = "org.jetbrains.kotlinx"
 properties["DeployVersion"]?.let { version = it }
 
 repositories {
-    mavenCentral()
+    maven("https://cache-redirector.jetbrains.com/repo.maven.apache.org/maven2")
 }
 
 configurations.create("functionalTestImplementation")
