@@ -31,6 +31,19 @@ class PluginTests : PluginTestBase() {
     }
 
     @Test
+    fun skipCommentLinesInRuleFile() {
+        copyProjects(
+            "/test-projects/publication",
+            "/test-projects/artifacts/publication/with-comments",
+        )
+
+        run("check") {
+            checkTaskStatus(":checkArtifacts", TaskOutcome.SUCCESS)
+            checkTaskStatus(":check", TaskOutcome.SUCCESS)
+        }
+    }
+
+    @Test
     fun checkArtifactsWithoutRulesFile() {
         copyProject("/test-projects/publication")
 
@@ -160,6 +173,16 @@ class PluginTests : PluginTestBase() {
 
         run("checkArtifacts") {
             checkTaskStatus(":checkArtifacts", TaskOutcome.SUCCESS)
+        }
+    }
+
+    @Test
+    fun artifactsDirEscapesProject() {
+        copyProjects("/test-projects/escaping-path")
+
+        runAndFail("dumpArtifacts") {
+            outputContains("Configured artifacts file for project")
+            outputContains("is located outside of the root project's root directory.")
         }
     }
 }

@@ -1,0 +1,7 @@
+plugins {
+    base
+    `maven-publish`
+}
+
+group = "org.jetbrains.kotlinx"
+version = "0.0.1"
