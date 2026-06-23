@@ -1,0 +1,5 @@
+# That's a comment
+
+org.jetbrains.kotlinx:basic-test-project/.jar,.pom
+
+// And this is a comment too
