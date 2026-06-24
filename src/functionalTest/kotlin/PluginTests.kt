@@ -185,4 +185,30 @@ class PluginTests : PluginTestBase() {
             outputContains("is located outside of the root project's root directory.")
         }
     }
+
+    @Test
+    fun dumpArtifactsForSignedPublication() {
+        copyProject("/test-projects/publication-with-signed-artifacts")
+
+        run("dumpArtifacts") {
+            checkTaskStatus(":dumpArtifacts", TaskOutcome.SUCCESS)
+        }
+
+        assertEquals(
+            "org.jetbrains.kotlinx:basic-test-project/.jar,.pom\n",
+            projectRoot.resolve("artifacts/basic-test-project.txt").readText()
+        )
+    }
+
+    @Test
+    fun checkArtifactsForSignedPublication() {
+        copyProjects(
+            "/test-projects/publication-with-signed-artifacts",
+            "/test-projects/artifacts/publication/default"
+        )
+
+        run("checkArtifacts") {
+            checkTaskStatus(":checkArtifacts", TaskOutcome.SUCCESS)
+        }
+    }
 }
