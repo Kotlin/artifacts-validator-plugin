@@ -9,3 +9,7 @@ pluginManagement {
         kotlin("jvm") version embeddedKotlinVersion
     }
 }
+
+plugins {
+    id("org.jetbrains.kotlinx.artifacts-validator-plugin") version "0.0.2"
+}

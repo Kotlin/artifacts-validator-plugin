@@ -1,0 +1,2 @@
+org.jetbrains.kotlinx.artifacts-validator-plugin:org.jetbrains.kotlinx.artifacts-validator-plugin.gradle.plugin/.pom
+org.jetbrains.kotlinx:artifacts-validator-plugin/.jar,.module,.pom,javadoc.jar,sources.jar
