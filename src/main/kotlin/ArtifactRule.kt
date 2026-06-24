@@ -1,4 +1,4 @@
-package kotlinx.validation
+package kotlinx.validation.artifacts
 
 /**
  * A rule describing an artifact that should be present in a repository.

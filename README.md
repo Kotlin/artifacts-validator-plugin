@@ -55,7 +55,7 @@ artifactsValidation {
 
 For older Gradle versions, a more verbose syntax is required:
 ```kotlin
-extensions.configure<kotlinx.validation.ArtifactsValidatorPluginSettingsExtension>("artifactsValidation") {
+extensions.configure<kotlinx.validation.artifacts.ArtifactsValidatorPluginSettingsExtension>("artifactsValidation") {
     dumpFileRootDirectory.set(layout.rootDirectory.dir("artifacts"))
 }
 ```

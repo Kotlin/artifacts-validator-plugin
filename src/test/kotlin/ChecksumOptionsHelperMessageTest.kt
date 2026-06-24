@@ -1,4 +1,4 @@
-package kotlinx.validation
+package kotlinx.validation.artifacts
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

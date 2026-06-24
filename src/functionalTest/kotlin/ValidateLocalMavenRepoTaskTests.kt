@@ -1,6 +1,5 @@
-package kotlinx.validation.test
+package kotlinx.validation.artifacts.test
 
-import org.gradle.internal.impldep.org.testng.SkipException
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assumptions
 import kotlin.test.Test

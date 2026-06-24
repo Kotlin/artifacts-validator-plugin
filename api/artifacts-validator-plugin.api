@@ -1,10 +1,10 @@
-public final class kotlinx/validation/ArtifactsValidationSettingsPlugin : org/gradle/api/Plugin {
+public final class kotlinx/validation/artifacts/ArtifactsValidationSettingsPlugin : org/gradle/api/Plugin {
 	public fun <init> ()V
 	public synthetic fun apply (Ljava/lang/Object;)V
 	public fun apply (Lorg/gradle/api/initialization/Settings;)V
 }
 
-public abstract interface class kotlinx/validation/ArtifactsValidatorPluginSettingsExtension {
+public abstract interface class kotlinx/validation/artifacts/ArtifactsValidatorPluginSettingsExtension {
 	public abstract fun getDumpFileRootDirectory ()Lorg/gradle/api/file/DirectoryProperty;
 }
 

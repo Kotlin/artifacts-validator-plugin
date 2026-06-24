@@ -1,4 +1,4 @@
-package kotlinx.validation
+package kotlinx.validation.artifacts
 
 import kotlin.io.path.Path
 import kotlin.test.Test

@@ -1,4 +1,4 @@
-package kotlinx.validation
+package kotlinx.validation.artifacts
 
 import java.nio.file.FileVisitResult
 import java.nio.file.Path
