@@ -22,6 +22,10 @@ internal class PublicationDescriptor(
     ) : Serializable
 
     internal companion object {
+        private val auxFileExtensions =
+            ChecksumType.values().map { it.extension }.toSet() +
+                    SignatureType.values().map { it.extension }.toSet()
+
         internal fun from(projectPath: String, mavenPublication: MavenPublication): PublicationDescriptor {
             val artifacts = if (mavenPublication is MavenPublicationInternal) {
                 // Internal publication contains all artifacts that are actually published,
@@ -29,6 +33,9 @@ internal class PublicationDescriptor(
                 mavenPublication.asNormalisedPublication().allArtifacts
             } else {
                 mavenPublication.artifacts
+            }.filter {
+                val ext = it.extension.substringAfterLast('.').lowercase()
+                ext !in auxFileExtensions
             }
             val artifactDescriptors = artifacts.map {
                 ArtifactDescriptor(it.classifier ?: "", it.extension)
