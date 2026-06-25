@@ -24,7 +24,7 @@ This is a settings plugin, so apply it in `settings.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("org.jetbrains.kotlinx.artifacts-validator-plugin") version "0.0.1"
+    id("org.jetbrains.kotlinx.artifacts-validator-plugin") version "0.0.2"
 }
 ```
 
