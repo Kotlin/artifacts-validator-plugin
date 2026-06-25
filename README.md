@@ -2,8 +2,8 @@
 
 [![Kotlin Alpha](https://kotl.in/badges/alpha.svg)](https://kotlinlang.org/docs/components-stability.html)
 [![JetBrains incubator project](https://jb.gg/badges/incubator.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
-[![GitHub license](https://img.shields.io/github/license/kotlin/kotlinx-artifacts-validator-plugin)](LICENSE)
-[![Download](https://img.shields.io/maven-central/v/org.jetbrains.kotlinx/kotlinx-artifacts-validator-plugin)](https://central.sonatype.com/artifact/org.jetbrains.kotlinx/kotlinx-artifacts-validator-plugin/)
+[![GitHub license](https://img.shields.io/github/license/kotlin/artifacts-validator-plugin)](LICENSE)
+[![Download](https://img.shields.io/maven-central/v/org.jetbrains.kotlinx/artifacts-validator-plugin)](https://central.sonatype.com/artifact/org.jetbrains.kotlinx/artifacts-validator-plugin/)
 
 ## Introduction
 
