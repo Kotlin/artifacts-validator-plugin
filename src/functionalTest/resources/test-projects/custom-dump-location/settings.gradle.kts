@@ -2,7 +2,7 @@ plugins {
     id("org.jetbrains.kotlinx.artifacts-validator-plugin")
 }
 
-extensions.configure<kotlinx.validation.ArtifactsValidatorPluginSettingsExtension>("artifactsValidation") {
+extensions.configure<kotlinx.validation.artifacts.ArtifactsValidatorPluginSettingsExtension>("artifactsValidation") {
     dumpFileRootDirectory.set(layout.rootDirectory.dir("expected"))
 }
 

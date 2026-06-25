@@ -1,4 +1,4 @@
-package kotlinx.validation
+package kotlinx.validation.artifacts
 
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.internal.publication.MavenPublicationInternal

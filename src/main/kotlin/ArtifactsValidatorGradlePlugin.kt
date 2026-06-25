@@ -1,4 +1,4 @@
-package kotlinx.validation
+package kotlinx.validation.artifacts
 
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin

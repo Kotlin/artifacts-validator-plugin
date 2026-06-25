@@ -1,4 +1,4 @@
-package kotlinx.validation.test
+package kotlinx.validation.artifacts.test
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
