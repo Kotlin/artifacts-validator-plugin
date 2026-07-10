@@ -4,10 +4,10 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.net.URI
 import java.nio.file.FileSystems
-import kotlin.io.path.Path
 import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlin.io.path.Path
 import kotlin.io.path.relativeTo
 import kotlin.test.*
 
@@ -245,7 +245,7 @@ class RepositoryScanningTest {
             "org/jetbrains/kotlinx/kotlinx-io-bytestring/0.8.4-SNAPSHOT/kotlinx-io-bytestring-0.8.4-20260206.112233-2.jar",
             "org/jetbrains/kotlinx/kotlinx-io-bytestring/0.8.4-SNAPSHOT/kotlinx-io-bytestring-0.8.4-20260206.112233-2.jar.md5",
             "org/jetbrains/kotlinx/kotlinx-io-bytestring/0.8.4-SNAPSHOT/kotlinx-io-bytestring-0.8.4-20260206.112233-10.jar",
-            )
+        )
 
         val root = repositoryRoot.toPath()
 
@@ -267,5 +267,44 @@ class RepositoryScanningTest {
             assertFalse(artifact.isSigned)
             assertFalse(artifact.hasChecksums)
         }
+    }
+
+    @Test
+    fun signatureFilesWithChecksums() {
+        buildRepository(
+            "org/jetbrains/kotlinx/kotlinx-io-core-jvm/0.8.0/kotlinx-io-core-jvm-0.8.0.jar",
+            "org/jetbrains/kotlinx/kotlinx-io-core-jvm/0.8.0/kotlinx-io-core-jvm-0.8.0.jar.asc",
+            "org/jetbrains/kotlinx/kotlinx-io-core-jvm/0.8.0/kotlinx-io-core-jvm-0.8.0.jar.md5",
+            "org/jetbrains/kotlinx/kotlinx-io-core-jvm/0.8.0/kotlinx-io-core-jvm-0.8.0.jar.sha1",
+            "org/jetbrains/kotlinx/kotlinx-io-core-jvm/0.8.0/kotlinx-io-core-jvm-0.8.0.jar.asc.md5",
+            "org/jetbrains/kotlinx/kotlinx-io-core-jvm/0.8.0/kotlinx-io-core-jvm-0.8.0.jar.asc.sha1",
+        )
+
+        val artifacts = repositoryRoot.toPath().scanRepository { path, exception ->
+            fail("No errors were expected, but got $exception for $path")
+        }
+        assertEquals(1, artifacts.size)
+    }
+
+    @Test
+    fun checksumsForSignatureFileWithoutSignatureFileItself() {
+        buildRepository(
+            "org/jetbrains/kotlinx/kotlinx-io-core-jvm/0.8.0/kotlinx-io-core-jvm-0.8.0.jar",
+            "org/jetbrains/kotlinx/kotlinx-io-core-jvm/0.8.0/kotlinx-io-core-jvm-0.8.0.jar.md5",
+            "org/jetbrains/kotlinx/kotlinx-io-core-jvm/0.8.0/kotlinx-io-core-jvm-0.8.0.jar.sha1",
+            "org/jetbrains/kotlinx/kotlinx-io-core-jvm/0.8.0/kotlinx-io-core-jvm-0.8.0.jar.asc.md5",
+            "org/jetbrains/kotlinx/kotlinx-io-core-jvm/0.8.0/kotlinx-io-core-jvm-0.8.0.jar.asc.sha1",
+        )
+
+        val errorsReported = mutableSetOf<String>()
+        val artifacts = repositoryRoot.toPath().scanRepository { path, exception ->
+            assertIs<IllegalArgumentException>(exception)
+            errorsReported.add(path.fileName.toString())
+        }
+        assertEquals(1, artifacts.size)
+        assertEquals(
+            setOf("kotlinx-io-core-jvm-0.8.0.jar.asc.md5", "kotlinx-io-core-jvm-0.8.0.jar.asc.sha1"),
+            errorsReported
+        )
     }
 }
