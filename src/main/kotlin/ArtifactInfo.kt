@@ -3,6 +3,8 @@ package kotlinx.validation.artifacts
 import java.nio.file.FileVisitResult
 import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.exists
+import kotlin.io.path.extension
 import kotlin.io.path.fileVisitor
 import kotlin.io.path.relativeTo
 import kotlin.io.path.visitFileTree
@@ -62,6 +64,18 @@ internal fun Path.scanRepository(
             }
             onVisitFile { file, _ ->
                 if (file.isMavenMetadataFile() || file.isArchetypeCatalog()) {
+                    return@onVisitFile FileVisitResult.CONTINUE
+                }
+
+                if (file.isChecksumForSignature()) {
+                    val fileName = file.fileName.toString()
+                    val signatureFileName = fileName.substring(0, fileName.lastIndexOf('.'))
+                    val signatureFile = file.resolveSibling(signatureFileName)
+                    if (!signatureFile.exists()) {
+                        onError(file, IllegalArgumentException(
+                            "$signatureFile does not exist, but there's a checksum file corresponding to it: $file")
+                        )
+                    }
                     return@onVisitFile FileVisitResult.CONTINUE
                 }
 
@@ -161,6 +175,14 @@ private fun Path.isMavenMetadataFile(): Boolean {
 }
 
 private fun Path.isArchetypeCatalog(): Boolean = fileName.toString() == "archetype-catalog.xml"
+
+private fun Path.isChecksumForSignature(): Boolean {
+    val ext = this.extension.lowercase()
+    if (checksumTypeValues.none { it.extension == ext }) return false
+
+    val fileName = this.fileName.toString().lowercase()
+    return signatureChecksumSuffixes.any { fileName.endsWith(it) }
+}
 
 internal enum class ChecksumType(val extension: String) {
     MD5("md5"),
@@ -341,3 +363,10 @@ private fun Path.extractGav(): Result<ArtifactInfo.Gav> {
 private val checksumTypeValues = ChecksumType.values()
 private val signatureTypeValues = SignatureType.values()
 private val specialExtensions = signatureTypeValues.map { it.extension }.toSet() + checksumTypeValues.map { it.extension }.toSet()
+private val signatureChecksumSuffixes = buildSet {
+    for (signature in signatureTypeValues) {
+        for (checksum in checksumTypeValues) {
+            add(".${signature.extension}.${checksum.extension}")
+        }
+    }
+}
